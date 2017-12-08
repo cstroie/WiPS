@@ -1,5 +1,5 @@
 /**
-  ntp.cpp
+  ntp.cpp - Network Time Protocol
 
   Copyright (c) 2017 Costin STROIE <costinstroie@eridu.eu.org>
 
