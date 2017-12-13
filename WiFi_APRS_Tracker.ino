@@ -13,6 +13,10 @@ MLS mls;
 #include "ntp.h"
 NTP ntp;
 
+// APRS
+#include "aprs.h"
+APRS aprs;
+
 
 /**
   Main Arduino setup function
@@ -32,6 +36,9 @@ void setup() {
   // Check the time and
   time_t utm = ntp.timeUNIX();
 
+  // APRS
+  aprs.init("cbaprs.de", 27235);
+  aprs.setNTP(ntp);
 }
 
 /**
@@ -45,13 +52,15 @@ void loop() {
   Serial.println(" found");
 
   // Connect to WiFi
-  Serial.print(F("Connecting to WiFi "));
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    delay(1000);
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.print(F("Connecting to WiFi "));
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    while (WiFi.status() != WL_CONNECTED) {
+      Serial.print(".");
+      delay(1000);
+    }
+    Serial.println(" done");
   }
-  Serial.println(" done");
 
   // Get the coordinates
   if (found > 0) {
@@ -70,17 +79,11 @@ void loop() {
 
   // APRS
   if (mls.netCount > 0) {
-    char aprsLAT[8] = "";
-    char aprsLNG[8] = "";
-
-    /*
-        int latDD = abs((int)lat);
-        int latMM = (int)((abs(lat) - latDD) * 6000);
-        int lngDD = abs((int)lng);
-        int lngMM = (int)((abs(lng) - lngDD) * 6000);
-      Serial.printf("APRS: %02d%02d.%02d%c/%03d%02d.%02d%c>\n", latDD, latMM / 100, latMM % 100, lat >= 0 ? 'N' : 'S', lngDD, lngMM / 100, lngMM % 100, lng >= 0 ? 'E' : 'W');
-    */
+    aprs.connect();
+    aprs.authenticate("IDDQD", "15095");
+    aprs.sendPosition(mls.latitude, mls.longitude);
+    aprs.stop();
   }
   Serial.println();
-  delay(10000);
+  delay(60000);
 }
