@@ -31,13 +31,13 @@ void APRS::setNTP(NTP &n) {
   ntp = n;
 }
 
-void APRS::connect(const char *server, int port) {
+bool APRS::connect(const char *server, int port) {
   setServer(server, port);
-  connect();
+  return connect();
 }
 
-void APRS::connect() {
-  client.connect(aprsServer, aprsPort);
+bool APRS::connect() {
+  return client.connect(aprsServer, aprsPort);
 }
 
 void APRS::stop() {
@@ -162,7 +162,7 @@ void APRS::coordinates(char *buf, float lat, float lng) {
   int lngDD = abs((int)lng);
   int lngMM = (int)((abs(lng) - lngDD) * 6000);
   // Return the formatted coordinates
-  sprintf_P(buf, PSTR("%02d%02d.%02d%c/%03d%02d.%02d%c>"),
+  sprintf_P(buf, PSTR("%02d%02d.%02d%c/%03d%02d.%02d%c"),
             latDD, latMM / 100, latMM % 100, lat >= 0 ? 'N' : 'S',
             lngDD, lngMM / 100, lngMM % 100, lng >= 0 ? 'E' : 'W');
 }
@@ -177,33 +177,39 @@ void APRS::setLocation(float lat, float lng) {
 
   @param comment the comment to append
 */
-void APRS::sendPosition(float latitude, float longitude, int cse, int spd, float altitude, const char *comment) {
+void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const char *comment) {
   // Local buffer
   const int bufSize = 20;
   char buf[bufSize] = "";
 
-  // Create APRS format coordinates
-  setLocation(latitude, longitude);
-
   // Compose the APRS packet
   strcpy_P(aprsPkt, aprsCallSign);
   strcat_P(aprsPkt, aprsPath);
-  strcat_P(aprsPkt, PSTR("@"));
-  time(buf, bufSize);
-  strncat(aprsPkt, buf, bufSize);
-  strcat_P(aprsPkt, aprsLocation);
-
   if (spd > 0) {
-    snprintf_P(buf, bufSize, PSTR("%03d/%03d"), cse, spd);
+    // Moving station
+    strcat_P(aprsPkt, PSTR("@"));
+    time(buf, bufSize);
     strncat(aprsPkt, buf, bufSize);
   }
-
-  if (altitude >= 0) {
-    strcat_P(aprsPkt, PSTR("/A="));
-    sprintf_P(buf, PSTR("%06d"), (long)(altitude * 3.28084));
+  else
+    // Fixed station
+    strcat_P(aprsPkt, PSTR("="));
+  // Coordinates in APRS format
+  setLocation(lat, lng);
+  strcat_P(aprsPkt, aprsLocation);
+  strcat_P(aprsPkt, PSTR("$"));
+  // Course and speed
+  if (spd > 0) {
+    snprintf_P(buf, bufSize, PSTR("%03d/%03d/"), cse, spd);
     strncat(aprsPkt, buf, bufSize);
   }
-  strcat_P(aprsPkt, pstrSP);
+  // Altitude
+  if (alt >= 0) {
+    strcat_P(aprsPkt, PSTR("A="));
+    sprintf_P(buf, PSTR("%06d"), (long)(alt * 3.28084));
+    strncat(aprsPkt, buf, bufSize);
+  }
+  //strcat_P(aprsPkt, pstrSP);
   // Comment
   if (comment != NULL)
     strcat(aprsPkt, comment);
@@ -236,6 +242,7 @@ void APRS::sendWeather(int temp, int hmdt, int pres, int srad) {
   time(buf, bufSize);
   strncat(aprsPkt, buf, bufSize);
   strcat_P(aprsPkt, aprsLocation);
+  strcat_P(aprsPkt, PSTR("_"));
   // Wind (unavailable)
   strcat_P(aprsPkt, PSTR(".../...g..."));
   // Temperature

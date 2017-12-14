@@ -18,9 +18,9 @@
 #include "ntp.h"
 
 // Device specific constants
-const char NODENAME[] = "WiFi_APRS_Tracker";
-const char nodename[] = "wifi-aprs-tracker";
-const char VERSION[]  = "0.1";
+const char NODENAME[] = "WiFiTrk";
+const char nodename[] = "wifitrk";
+const char VERSION[]  = "0.2";
 
 
 // APRS constants
@@ -45,8 +45,8 @@ class APRS {
     void setServer(const char *server);
     void setServer(const char *server, int port);
     void setNTP(NTP &n);
-    void connect(const char *server, int port);
-    void connect();
+    bool connect(const char *server, int port);
+    bool connect();
     void stop();
     void send(const char *pkt);
     void send();
@@ -56,7 +56,7 @@ class APRS {
     void sendMessage(const char *dest, const char *title, const char *message);
     void coordinates(char *buf, float lat, float lng);
     void setLocation(float lat, float lng);
-    void sendPosition(float latitude, float longitude, int cse = 0, int spd = 0, float altitude = -1, const char *comment = NULL);
+    void sendPosition(float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL);
     void sendWeather(int temp, int hmdt, int pres, int srad);
     void sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits);
     void sendTelemetrySetup();
@@ -64,14 +64,14 @@ class APRS {
     NTP  ntp;
     WiFiClient client;
     char  aprsPkt[100];
-    char  aprsServer[50];                                         // CWOP APRS-IS server address to connect to
-    int   aprsPort;                                // CWOP APRS-IS port
-    char aprsLocation[20];
-    char aprsCallSign[10];
-    char aprsPassCode[10];
-    int       aprsTlmSeq     = 0;  // Telemetry sequence mumber
-    bool PROBE      = true;                   // True if the station is being probed
-    char DEVICEID[6];                // t_hing A_rduino E_SP8266 W_iFi 4_
+    char  aprsServer[50];             // CWOP APRS-IS server address to connect to
+    int   aprsPort;                   // CWOP APRS-IS port
+    char  aprsLocation[20];
+    char  aprsCallSign[10];
+    char  aprsPassCode[10];
+    int   aprsTlmSeq        = 0;      // Telemetry sequence mumber
+    bool  PROBE             = false;  // True if the station is being probed
+    char  DEVICEID[6];                // t_hing A_rduino E_SP8266 W_iFi 4_
 
 };
 
