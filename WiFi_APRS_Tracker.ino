@@ -1,9 +1,19 @@
+/**
+  WiFi APRS Tracker - Automated Position Reporting System based on Wifi
+                      geolocation, using Mozilla Location Services
+
+  Copyright (c) 2017 Costin STROIE <costinstroie@eridu.eu.org>
+
+  This file is part of WiFi_APRS_Tracker.
+*/
+
 
 // User settings
-#include "UserSettings.h"
+#include "config.h"
 
 // WiFi
 #include <ESP8266WiFi.h>
+#include <WiFiManager.h>
 
 // Mozilla Location Services
 #include "mls.h"
@@ -18,26 +28,93 @@ NTP ntp;
 APRS aprs;
 
 
+unsigned long rpNextTime  = 0;        // Next time to report
+unsigned long rpDelay     = 30000UL;  // Delay between reporting
+
+/**
+  Convert IPAddress to char array
+*/
+char charIP(const IPAddress ip, char *buf, size_t len, boolean pad = false) {
+  if (pad) snprintf_P(buf, len, PSTR("%3d.%3d.%3d.%3d"), ip[0], ip[1], ip[2], ip[3]);
+  else     snprintf_P(buf, len, PSTR("%d.%d.%d.%d"),     ip[0], ip[1], ip[2], ip[3]);
+}
+
+/**
+  Display the WiFi parameters
+*/
+void showWiFi() {
+  if (WiFi.isConnected()) {
+    char ipbuf[16] = "";
+    char gwbuf[16] = "";
+    char nsbuf[16] = "";
+
+    // Get the IPs as char arrays
+    charIP(WiFi.localIP(),   ipbuf, sizeof(ipbuf), true);
+    charIP(WiFi.gatewayIP(), gwbuf, sizeof(gwbuf), true);
+    charIP(WiFi.dnsIP(),     nsbuf, sizeof(nsbuf), true);
+
+    // Print
+    Serial.println();
+    Serial.print(F("WiFi connected to "));
+    Serial.print(WiFi.SSID());
+    Serial.print(F(" on channel "));
+    Serial.print(WiFi.channel());
+    Serial.print(F(", RSSI "));
+    Serial.print(WiFi.RSSI());
+    Serial.println(F(" dBm."));
+    Serial.print(F(" IP : "));
+    Serial.println(ipbuf);
+    Serial.print(F(" GW : "));
+    Serial.println(gwbuf);
+    Serial.print(F(" DNS: "));
+    Serial.println(nsbuf);
+    Serial.println();
+  }
+  else {
+    Serial.println();
+    Serial.print(F("WiFi not connected"));
+  }
+}
+
+/**
+  Feedback notification when SoftAP is started
+*/
+void wifiCallback(WiFiManager *wifiMgr) {
+  Serial.print(F("Connect to "));
+  Serial.println(wifiMgr->getConfigPortalSSID());
+}
+
 /**
   Main Arduino setup function
 */
 void setup() {
-  // Init the serial com
+  // Init the serial communication
   Serial.begin(115200);
   Serial.println();
+  Serial.print(NODENAME);
+  Serial.print(" ");
+  Serial.print(VERSION);
+  Serial.print(" ");
+  Serial.println(__DATE__);
 
-  // Set WiFi to station mode and disconnect from AP
-  WiFi.mode(WIFI_STA);
-  //WiFi.disconnect();
-  //delay(100);
+  // Set the host name
+  WiFi.hostname(NODENAME);
+  // Try to connect to WiFi
+  WiFiManager wifiManager;
+  wifiManager.setTimeout(300);
+  wifiManager.setAPCallback(wifiCallback);
+  wifiManager.autoConnect(NODENAME);
+  while (!wifiManager.autoConnect(NODENAME))
+    delay(1000);
+
+  // Connected
+  showWiFi();
 
   // Configure NTP
-  ntp.init("europe.pool.ntp.org");
-  // Check the time and
-  time_t utm = ntp.timeUNIX();
+  ntp.init(NTP_SERVER);
 
-  // APRS
-  aprs.init("cbaprs.de", 27235);
+  // Configure APRS
+  aprs.init(APRS_SERVER, APRS_PORT);
   aprs.setNTP(ntp);
 }
 
@@ -45,45 +122,49 @@ void setup() {
   Main Arduino loop
 */
 void loop() {
-  // Scan the WiFi access points
-  Serial.print(F("Scanning WiFi networks...  "));
-  int found = mls.wifiScan();
-  Serial.print(found);
-  Serial.println(" found");
+  unsigned long now = millis();
+  // Check if we should report
+  if (now >= rpNextTime) {
+    // Repeat after a delay
+    rpNextTime = now + rpDelay;
+    // Log the uptime
+    Serial.print("["); Serial.print(now / 1000); Serial.println("]");
 
-  // Connect to WiFi
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.print(F("Connecting to WiFi "));
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-    while (WiFi.status() != WL_CONNECTED) {
-      Serial.print(".");
-      delay(1000);
+    // Scan the WiFi access points
+    Serial.print(F("Scanning WiFi networks... "));
+    int found = mls.wifiScan();
+    Serial.print(found);
+    Serial.println(" found");
+
+    // Get the coordinates
+    if (found > 0) {
+      Serial.print(F("Geolocating... "));
+      int acc = mls.geoLocation();
+      if (acc >= 0 and acc <= GEO_MAXACC) {
+        Serial.print(mls.latitude, 6); Serial.print(","); Serial.print(mls.longitude, 6);
+        Serial.print(F(" acc ")); Serial.print(acc); Serial.println("m.");
+
+        if (mls.getVector()) {
+          Serial.print(F("Dst: ")); Serial.print(mls.distance, 2); Serial.print("m  ");
+          Serial.print(F("Spd: ")); Serial.print(mls.speed, 2); Serial.print("m/s  ");
+          Serial.print(F("Crs: ")); Serial.print(mls.bearing);
+          Serial.println();
+        }
+
+        // APRS
+        if (aprs.connect()) {
+          aprs.authenticate(APRS_CALLSIGN, APRS_PASSCODE);
+          if (acc < GEO_MINACC) aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449));
+          else                  aprs.sendPosition(mls.latitude, mls.longitude);
+          aprs.stop();
+        }
+      }
+      else {
+        Serial.print(F("failed, acc "));
+        Serial.print(acc);
+        Serial.println("m.");
+      }
     }
-    Serial.println(" done");
-  }
-
-  // Get the coordinates
-  if (found > 0) {
-    Serial.println(F("Geolocating...  "));
-    int acc = mls.geoLocation();
-    Serial.print(F("  Lat: ")); Serial.println(mls.latitude, 6);
-    Serial.print(F("  Lng: ")); Serial.println(mls.longitude, 6);
-    Serial.print(F("  Acc: ")); Serial.println(acc);
-
-    Serial.println(F("Vector...  "));
-    mls.getVector();
-    Serial.print(F("  Dst: ")); Serial.println(mls.distance, 6);
-    Serial.print(F("  Spd: ")); Serial.println(mls.speed, 6);
-    Serial.print(F("  Hed: ")); Serial.println(mls.bearing);
-
-    // APRS
-    if (acc < 50) {
-      aprs.connect();
-      aprs.authenticate("IDDQD", "15095");
-      aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449));
-      aprs.stop();
-    }
-  }
-  Serial.println();
-  delay(10000);
+    Serial.println();
+  };
 }
