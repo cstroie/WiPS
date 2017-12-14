@@ -15,19 +15,34 @@ MLS::MLS() {
 void MLS::init() {
 }
 
+/**
+  Scan the WiFi networks and store them in an array of structs
+
+  @return the number of networks found
+*/
 int MLS::wifiScan() {
+  // Scan
   netCount = WiFi.scanNetworks();
+  // Keep the significant date
   if (netCount > 0) {
     if (netCount > MAXNETS) netCount = MAXNETS;
     for (size_t i = 0; i < netCount; ++i) {
+      // TODO exclude the network we are connected to
       memcpy(nets[i].bssid, WiFi.BSSID(i), 6);
       nets[i].rssi = (int8_t)(WiFi.RSSI(i));
     }
   }
+  // Clear the scan results
   WiFi.scanDelete();
+  // Return the number of networks found
   return netCount;
 }
 
+/**
+  Geolocation. Store the coordinates in private variables
+
+  @return the geolocation accuracy
+*/
 int MLS::geoLocation() {
   int acc = -1;
   float lat = 0.0;
@@ -38,11 +53,11 @@ int MLS::geoLocation() {
   geoClient.setTimeout(5000);
 
   if (geoClient.connect(geoServer, geoPort)) {
+    // Local buffer
     const int bufSize = 250;
     char buf[bufSize] = "";
 
-    /* Compose the geolocation request */
-    // POST request
+    /* Geolocation request header */
     strcpy_P(buf, geoPOST);
     strcat_P(buf, eol);
     geoClient.print(buf);
@@ -85,7 +100,7 @@ int MLS::geoLocation() {
     //Serial.print(buf);
     yield();
 
-    /* Payload */
+    /* Geolocation request payload */
     // First line in json
     strcpy_P(buf, PSTR("{\"wifiAccessPoints\": [\n"));
     geoClient.print(buf);
@@ -120,7 +135,7 @@ int MLS::geoLocation() {
     geoClient.print(buf);
     //Serial.print(buf);
 
-    /* Get the response */
+    /* Get the geolocation response */
     //Serial.println();
     while (geoClient.connected()) {
       int rlen = geoClient.readBytesUntil('\r', buf, bufSize);
@@ -139,39 +154,60 @@ int MLS::geoLocation() {
     }
     //Serial.println();
 
+    /* Close the connection */
+    geoClient.stop();
+
     /* Check the data */
-    if (acc >= 0 and acc < 100) {
-      /* Store old data */
-      validPrevCoords = validCoords;
-      prevLatitude    = latitude;
-      prevLongitude   = longitude;
-      prevTime        = currTime;
+    if (acc >= 0 and acc <= GEO_MAXACC) {
+      if (validCoords) {
+        /* Store old data */
+        validPrevCoords = validCoords;
+        prevLatitude    = latitude;
+        prevLongitude   = longitude;
+        prevTime        = currTime;
+      }
       /* Store new data */
       validCoords     = true;
       latitude        = lat;
       longitude       = lng;
       currTime        = millis();
     }
-
-    /* Close the connection */
-    geoClient.stop();
+    else {
+      validCoords     = false;
+    }
   }
-
+  // Return the geolocation accuracy
   return acc;
 }
 
-void MLS::getVector() {
+/**
+  Get the navigation distance, bearing and speed using the equirectangular approximation
+*/
+// Haversine
+// var φ1 = lat1.toRadians(), φ2 = lat2.toRadians(), Δλ = (lon2-lon1).toRadians(), R = 6371e3; // gives d in metres
+// var d = Math.acos( Math.sin(φ1)*Math.sin(φ2) + Math.cos(φ1)*Math.cos(φ2) * Math.cos(Δλ) ) * R;
+bool MLS::getVector() {
+  // Check if the geolocation seems valid
   if (validCoords and validPrevCoords) {
     // Earth radius in meters
     float R = 6371000;
+    // Equirectangular approximation
     float x = DEG_TO_RAD * (longitude - prevLongitude) * cos(DEG_TO_RAD * (latitude + prevLatitude) / 2);
     float y = DEG_TO_RAD * (latitude - prevLatitude);
+    // Compute the distance and speed
     distance = sqrt(x * x + y * y) * R;
     speed = 1000 * distance / (currTime - prevTime);
-    float heading = RAD_TO_DEG * atan2(sin(longitude - prevLongitude) * cos(latitude), cos(prevLatitude) * sin(latitude) - sin(prevLatitude) * cos(latitude) * cos(longitude - prevLongitude));
-    bearing = (int)(heading + 360) % 360;
+    // Get the bearing
+    float crs = RAD_TO_DEG * atan2(sin(longitude - prevLongitude) * cos(latitude),
+                                   cos(prevLatitude) * sin(latitude) - sin(prevLatitude) * cos(latitude) * cos(longitude - prevLongitude));
+    bearing = (int)(crs + 360) % 360;
+    return true;
   }
   else
+  {
+    // Store an invalid distance
     distance = -1;
+    return false;
+  }
 }
 

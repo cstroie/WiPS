@@ -14,10 +14,11 @@
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
+#include "config.h"
 
 const char geoServer[]        = "location.services.mozilla.com";
 const int  geoPort            = 443;
-const char geoPOST[] PROGMEM  = "POST /v1/geolocate?key=test HTTP/1.1";
+const char geoPOST[] PROGMEM  = "POST /v1/geolocate?key=" GEO_APIKEY " HTTP/1.1";
 const char eol[]     PROGMEM  = "\r\n";
 
 
@@ -27,20 +28,24 @@ class MLS {
     void  init();
     int   wifiScan();
     int   geoLocation();
-    void  getVector();
-    size_t netCount;
-    float latitude, longitude;
-    float distance, speed;
-    int bearing;
+    bool  getVector();
+    float latitude;
+    float longitude;
+    float distance;
+    float speed;
+    int   bearing;
+    bool  validCoords     = false;
+    bool  validPrevCoords = false;
   private:
-    struct BSSID_RSSI {
+    struct  BSSID_RSSI {
       uint8_t bssid[6];
       int8_t  rssi;
     } nets[MAXNETS];
-    bool validCoords      = false;
-    bool validPrevCoords  = false;
-    float prevLatitude, prevLongitude;
-    time_t prevTime, currTime;
+    int           netCount;
+    float         prevLatitude;
+    float         prevLongitude;
+    unsigned long prevTime;
+    unsigned long currTime;
 };
 
 #endif /* MLS_H */
