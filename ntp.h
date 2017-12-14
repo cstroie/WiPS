@@ -15,11 +15,13 @@
 class NTP {
   public:
     NTP();
-    void init(char *server);
+    void          init(char *server);
+    void          init(const char *server, int port = 123);
+    void          setServer(const char *server, int port = 123);
     unsigned long timeUNIX(bool sync = true);
-    unsigned long ntpSync();
     unsigned long uptime(char *buf, size_t len);
   private:
+    unsigned long ntpSync();
     char          ntpServer[50];                        // NTP server to connect to (RFC5905)
     int           ntpPort     = 123;                    // NTP port
     unsigned long ntpNextSync = 0UL;                    // Next time to syncronize

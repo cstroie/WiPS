@@ -12,7 +12,13 @@
 NTP::NTP() {
 }
 
-void NTP::init(char *server) {
+void NTP::init(const char *server, int port) {
+  setServer(server, port);
+  timeUNIX();
+}
+
+void NTP::setServer(const char *server, int port) {
+  ntpPort = port;
   strncpy(ntpServer, (char*)server, sizeof(ntpServer));
 }
 
