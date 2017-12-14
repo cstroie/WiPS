@@ -56,7 +56,7 @@ class APRS {
     void sendMessage(const char *dest, const char *title, const char *message);
     void coordinates(char *buf, float lat, float lng);
     void setLocation(float lat, float lng);
-    void sendPosition(float latitude, float longitude, float altitude = -1, const char *comment = NULL);
+    void sendPosition(float latitude, float longitude, int cse = 0, int spd = 0, float altitude = -1, const char *comment = NULL);
     void sendWeather(int temp, int hmdt, int pres, int srad);
     void sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits);
     void sendTelemetrySetup();

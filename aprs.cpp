@@ -177,9 +177,10 @@ void APRS::setLocation(float lat, float lng) {
 
   @param comment the comment to append
 */
-void APRS::sendPosition(float latitude, float longitude, float altitude, const char *comment) {
+void APRS::sendPosition(float latitude, float longitude, int cse, int spd, float altitude, const char *comment) {
   // Local buffer
-  char buf[20] = "";
+  const int bufSize = 20;
+  char buf[bufSize] = "";
 
   // Create APRS format coordinates
   setLocation(latitude, longitude);
@@ -187,12 +188,20 @@ void APRS::sendPosition(float latitude, float longitude, float altitude, const c
   // Compose the APRS packet
   strcpy_P(aprsPkt, aprsCallSign);
   strcat_P(aprsPkt, aprsPath);
-  strcat_P(aprsPkt, PSTR("!"));
+  strcat_P(aprsPkt, PSTR("@"));
+  time(buf, bufSize);
+  strncat(aprsPkt, buf, bufSize);
   strcat_P(aprsPkt, aprsLocation);
+
+  if (spd > 0) {
+    snprintf_P(buf, bufSize, PSTR("%03d/%03d"), cse, spd);
+    strncat(aprsPkt, buf, bufSize);
+  }
+
   if (altitude >= 0) {
     strcat_P(aprsPkt, PSTR("/A="));
     sprintf_P(buf, PSTR("%06d"), (long)(altitude * 3.28084));
-    strncat(aprsPkt, buf, sizeof(buf));
+    strncat(aprsPkt, buf, bufSize);
   }
   strcat_P(aprsPkt, pstrSP);
   // Comment

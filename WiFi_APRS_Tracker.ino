@@ -75,15 +75,15 @@ void loop() {
     Serial.print(F("  Dst: ")); Serial.println(mls.distance, 6);
     Serial.print(F("  Spd: ")); Serial.println(mls.speed, 6);
     Serial.print(F("  Hed: ")); Serial.println(mls.bearing);
-  }
 
-  // APRS
-  if (mls.netCount > 0) {
-    aprs.connect();
-    aprs.authenticate("IDDQD", "15095");
-    aprs.sendPosition(mls.latitude, mls.longitude);
-    aprs.stop();
+    // APRS
+    if (acc < 50) {
+      aprs.connect();
+      aprs.authenticate("IDDQD", "15095");
+      aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449));
+      aprs.stop();
+    }
   }
   Serial.println();
-  delay(60000);
+  delay(10000);
 }

@@ -140,7 +140,7 @@ int MLS::geoLocation() {
     //Serial.println();
 
     /* Check the data */
-    if (acc >= 0) {
+    if (acc >= 0 and acc < 100) {
       /* Store old data */
       validPrevCoords = validCoords;
       prevLatitude    = latitude;
