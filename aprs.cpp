@@ -197,7 +197,7 @@ void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
   // Coordinates in APRS format
   setLocation(lat, lng);
   strcat_P(aprsPkt, aprsLocation);
-  strcat_P(aprsPkt, PSTR("$"));
+  strcat_P(aprsPkt, PSTR(">"));
   // Course and speed
   if (spd > 0) {
     snprintf_P(buf, bufSize, PSTR("%03d/%03d/"), cse, spd);
