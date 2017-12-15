@@ -28,9 +28,10 @@ NTP ntp;
 APRS aprs;
 
 
+unsigned long geoNextTime = 0;        // Next time to geolocate
+unsigned long geoDelay    = 30000UL;  // Delay between geolocating
 unsigned long rpNextTime  = 0;        // Next time to report
-unsigned long rpDelay     = 30000UL;  // Delay between reporting
-unsigned long rpLastTime  = 0;        // Last report time
+unsigned long rpDelay     = 300000UL; // Delay between reporting
 
 /**
   Convert IPAddress to char array
@@ -124,10 +125,10 @@ void setup() {
 */
 void loop() {
   unsigned long now = millis();
-  // Check if we should report
-  if (now >= rpNextTime) {
+  // Check if we should geolocate
+  if (now >= geoNextTime) {
     // Repeat after a delay
-    rpNextTime = now + rpDelay;
+    geoNextTime = now + geoDelay;
     // Log the uptime
     Serial.print("["); Serial.print(now / 1000); Serial.println("]");
 
@@ -141,7 +142,7 @@ void loop() {
     if (found > 0) {
       Serial.print(F("Geolocating... "));
       int acc = mls.geoLocation();
-      if (acc >= 0 and acc <= GEO_MAXACC) {
+      if (mls.validCoords) {
         Serial.print(mls.latitude, 6); Serial.print(","); Serial.print(mls.longitude, 6);
         Serial.print(F(" acc ")); Serial.print(acc); Serial.println("m.");
 
@@ -152,16 +153,20 @@ void loop() {
           Serial.println();
         }
 
-        // APRS
-        if (aprs.connect()) {
-          aprs.authenticate(APRS_CALLSIGN, APRS_PASSCODE);
-          if (acc < GEO_MINACC and mls.speed >= 1)
-            aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449));
-          else if (now - rpLastTime > 300000UL) {
-            rpLastTime = now;
-            aprs.sendPosition(mls.latitude, mls.longitude);
+        // APRS if moving or time expired
+        if (mls.speed >= 1 or (now > rpNextTime)) {
+          // Repeat the report after a delay
+          rpNextTime = now + rpDelay;
+          // Connect to the server
+          if (aprs.connect()) {
+            // Authenticate
+            aprs.authenticate(APRS_CALLSIGN, APRS_PASSCODE);
+            // Report course and speed if the geolocation accuracy is good enough
+            if (acc < GEO_MINACC) aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449));
+            else                  aprs.sendPosition(mls.latitude, mls.longitude);
+            // Close the connection
+            aprs.stop();
           }
-          aprs.stop();
         }
       }
       else {
