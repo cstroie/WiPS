@@ -56,6 +56,8 @@ int MLS::geoLocation() {
     // Local buffer
     const int bufSize = 250;
     char buf[bufSize] = "";
+    // Keep the internal time
+    unsigned long now = millis();
 
     /* Geolocation request header */
     strcpy_P(buf, geoPOST);
@@ -157,6 +159,9 @@ int MLS::geoLocation() {
     /* Close the connection */
     geoClient.stop();
 
+    /* Check if previous valid coordinates are too old (over one hour) and invalidate them */
+    if (now - prevTime > 3600000UL) validPrevCoords = false;
+
     /* Check the data */
     if (acc >= 0 and acc <= GEO_MAXACC) {
       if (validCoords) {
@@ -170,7 +175,7 @@ int MLS::geoLocation() {
       validCoords     = true;
       latitude        = lat;
       longitude       = lng;
-      currTime        = millis();
+      currTime        = now;
     }
     else {
       validCoords     = false;
