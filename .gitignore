@@ -31,4 +31,4 @@
 *.out
 *.app
 
-UserSettings.h
+config.h

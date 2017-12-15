@@ -30,6 +30,7 @@ APRS aprs;
 
 unsigned long rpNextTime  = 0;        // Next time to report
 unsigned long rpDelay     = 30000UL;  // Delay between reporting
+unsigned long rpLastTime  = 0;        // Last report time
 
 /**
   Convert IPAddress to char array
@@ -154,8 +155,12 @@ void loop() {
         // APRS
         if (aprs.connect()) {
           aprs.authenticate(APRS_CALLSIGN, APRS_PASSCODE);
-          if (acc < GEO_MINACC) aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449));
-          else                  aprs.sendPosition(mls.latitude, mls.longitude);
+          if (acc < GEO_MINACC and mls.speed >= 1)
+            aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449));
+          else if (now - rpLastTime > 300000UL) {
+            rpLastTime = now;
+            aprs.sendPosition(mls.latitude, mls.longitude);
+          }
           aprs.stop();
         }
       }

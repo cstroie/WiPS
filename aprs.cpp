@@ -200,7 +200,7 @@ void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
   strcat_P(aprsPkt, PSTR(">"));
   // Course and speed
   if (spd > 0) {
-    snprintf_P(buf, bufSize, PSTR("%03d/%03d/"), cse, spd);
+    snprintf_P(buf, bufSize, PSTR("%03d/%03d"), cse, spd);
     strncat(aprsPkt, buf, bufSize);
   }
   // Altitude
