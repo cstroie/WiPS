@@ -37,11 +37,11 @@ bool APRS::connect(const char *server, int port) {
 }
 
 bool APRS::connect() {
-  return client.connect(aprsServer, aprsPort);
+  return aprsClient.connect(aprsServer, aprsPort);
 }
 
 void APRS::stop() {
-  client.stop();
+  aprsClient.stop();
 }
 
 /**
@@ -49,18 +49,23 @@ void APRS::stop() {
 
   @param *pkt the packet to send
 */
-void APRS::send(const char *pkt) {
+bool APRS::send(const char *pkt) {
+  bool result;
+  if (result = aprsClient.connected()) {
 #ifndef DEVEL
-  client.print(pkt);
-  yield();
+    aprsClient.print(pkt);
+    yield();
 #endif
 #ifdef DEBUG
-  Serial.print(pkt);
+    Serial.print(F("[APRS>] "));
+    Serial.print(pkt);
 #endif
+  }
+  return result;
 }
 
-void APRS::send() {
-  send(aprsPkt);
+bool APRS::send() {
+  return send(aprsPkt);
 }
 
 /**
@@ -84,20 +89,47 @@ void APRS::time(char *buf, size_t len) {
   Send APRS authentication data
   user FW0690 pass -1 vers WxSta 0.2"
 */
-void APRS::authenticate(const char *callsign, const char *passcode) {
+bool APRS::authenticate(const char *callsign, const char *passcode) {
+  bool result = false;
   strncpy(aprsCallSign, (char*)callsign, sizeof(aprsCallSign));
   strncpy(aprsPassCode, (char*)passcode, sizeof(aprsPassCode));
+  if (aprsClient.connected()) {
+    // Read the welcome message
+    int rlen = aprsClient.readBytesUntil('\r', aprsPkt, sizeof(aprsPkt));
+    aprsPkt[rlen] = '\0';
+    Serial.print("[APRS<] "); Serial.print(aprsPkt);
+    // Send the credentials
+    strcpy_P(aprsPkt, PSTR("user "));
+    strcat_P(aprsPkt, aprsCallSign);
+    strcat_P(aprsPkt, PSTR(" pass "));
+    strcat_P(aprsPkt, aprsPassCode);
+    strcat_P(aprsPkt, PSTR(" vers "));
+    strcat  (aprsPkt, NODENAME);
+    strcat_P(aprsPkt, pstrSP);
+    strcat  (aprsPkt, VERSION);
+    strcat_P(aprsPkt, eol);
+    send(aprsPkt);
+    // Check the one-line response
+    rlen = aprsClient.readBytesUntil('\r', aprsPkt, sizeof(aprsPkt));
+    aprsPkt[rlen] = '\0';
+    Serial.print("[APRS<] "); Serial.print(aprsPkt);
+    // Tokenize the response
+    char* pch;
+    pch = strtok(aprsPkt, " ");
+    while (pch != NULL) {
+      if (strcmp(pch, "verified") == 0) {
+        result = true;
+        break;
+      }
+      pch = strtok(NULL, " ");
+    }
+  }
+  return result;
+}
 
-  strcpy_P(aprsPkt, PSTR("user "));
-  strcat_P(aprsPkt, aprsCallSign);
-  strcat_P(aprsPkt, PSTR(" pass "));
-  strcat_P(aprsPkt, aprsPassCode);
-  strcat_P(aprsPkt, PSTR(" vers "));
-  strcat  (aprsPkt, NODENAME);
-  strcat_P(aprsPkt, pstrSP);
-  strcat  (aprsPkt, VERSION);
-  strcat_P(aprsPkt, eol);
-  send(aprsPkt);
+void APRS::setSymbol(const char table, const char symbol) {
+  aprsTable  = table;
+  aprsSymbol = symbol;
 }
 
 /**
@@ -153,7 +185,7 @@ void APRS::sendMessage(const char *dest, const char *title, const char *message)
 }
 
 /**
-  Create the coordinates in APRS format
+  Create the coordinates in APRS format, also setting the symbol
 */
 void APRS::coordinates(char *buf, float lat, float lng) {
   // Compute integer and fractional coordinates
@@ -162,9 +194,16 @@ void APRS::coordinates(char *buf, float lat, float lng) {
   int lngDD = abs((int)lng);
   int lngMM = (int)((abs(lng) - lngDD) * 6000);
   // Return the formatted coordinates
-  sprintf_P(buf, PSTR("%02d%02d.%02d%c/%03d%02d.%02d%c"),
-            latDD, latMM / 100, latMM % 100, lat >= 0 ? 'N' : 'S',
-            lngDD, lngMM / 100, lngMM % 100, lng >= 0 ? 'E' : 'W');
+  sprintf_P(buf, PSTR("%02d%02d.%02d%c%c%03d%02d.%02d%c%c"),
+            latDD, latMM / 100, latMM % 100, lat >= 0 ? 'N' : 'S', aprsTable,
+            lngDD, lngMM / 100, lngMM % 100, lng >= 0 ? 'E' : 'W', aprsSymbol);
+}
+
+void APRS::coordinates(char *buf, float lat, float lng, char table, char symbol) {
+  // Set the symbol
+  setSymbol(table, symbol);
+  // Compute the coordinates
+  coordinates(buf, lat, lng);
 }
 
 void APRS::setLocation(float lat, float lng) {
@@ -185,19 +224,11 @@ void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
   // Compose the APRS packet
   strcpy_P(aprsPkt, aprsCallSign);
   strcat_P(aprsPkt, aprsPath);
-  if (spd > 0) {
-    // Moving station
-    strcat_P(aprsPkt, PSTR("@"));
-    time(buf, bufSize);
-    strncat(aprsPkt, buf, bufSize);
-  }
-  else
-    // Fixed station
-    strcat_P(aprsPkt, PSTR("="));
+  strcat_P(aprsPkt, PSTR("!"));
   // Coordinates in APRS format
+  setSymbol('/', 'x');
   setLocation(lat, lng);
   strcat_P(aprsPkt, aprsLocation);
-  strcat_P(aprsPkt, PSTR(">"));
   // Course and speed
   if (spd > 0) {
     snprintf_P(buf, bufSize, PSTR("%03d/%03d"), cse, spd);
@@ -205,7 +236,7 @@ void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
   }
   // Altitude
   if (alt >= 0) {
-    strcat_P(aprsPkt, PSTR("A="));
+    strcat_P(aprsPkt, PSTR("/A="));
     sprintf_P(buf, PSTR("%06d"), (long)(alt * 3.28084));
     strncat(aprsPkt, buf, bufSize);
   }
@@ -241,6 +272,7 @@ void APRS::sendWeather(int temp, int hmdt, int pres, int srad) {
   strcat_P(aprsPkt, PSTR("@"));
   time(buf, bufSize);
   strncat(aprsPkt, buf, bufSize);
+  setSymbol('/', '_');
   strcat_P(aprsPkt, aprsLocation);
   strcat_P(aprsPkt, PSTR("_"));
   // Wind (unavailable)

@@ -48,12 +48,14 @@ class APRS {
     bool connect(const char *server, int port);
     bool connect();
     void stop();
-    void send(const char *pkt);
-    void send();
+    bool send(const char *pkt);
+    bool send();
     void time(char *buf, size_t len);
-    void authenticate(const char *callsign, const char *passcode);
+    bool authenticate(const char *callsign, const char *passcode);
+    void setSymbol(const char table, const char symbol);
     void sendStatus(const char *message);
     void sendMessage(const char *dest, const char *title, const char *message);
+    void coordinates(char *buf, float lat, float lng, char table, char symbol);
     void coordinates(char *buf, float lat, float lng);
     void setLocation(float lat, float lng);
     void sendPosition(float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL);
@@ -62,13 +64,15 @@ class APRS {
     void sendTelemetrySetup();
   private:
     NTP  ntp;
-    WiFiClient client;
+    WiFiClient aprsClient;
     char  aprsPkt[100];
     char  aprsServer[50];             // CWOP APRS-IS server address to connect to
     int   aprsPort;                   // CWOP APRS-IS port
     char  aprsLocation[20];
     char  aprsCallSign[10];
     char  aprsPassCode[10];
+    char  aprsTable;
+    char  aprsSymbol;
     int   aprsTlmSeq        = 0;      // Telemetry sequence mumber
     bool  PROBE             = false;  // True if the station is being probed
     char  DEVICEID[6];                // t_hing A_rduino E_SP8266 W_iFi 4_
