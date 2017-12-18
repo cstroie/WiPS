@@ -21,20 +21,30 @@ void MLS::init() {
   @return the number of networks found
 */
 int MLS::wifiScan() {
+  // Keep the AP BSSID
+  uint8_t apBSSID[WL_MAC_ADDR_LENGTH];
+  memcpy(apBSSID, WiFi.BSSID(), WL_MAC_ADDR_LENGTH);
   // Scan
   netCount = WiFi.scanNetworks();
-  // Keep the significant date
+  // Keep only the BSSID and RSSI
+  int scanCount = 0, storeCount = 0;
+  // Only if there are any networks found
   if (netCount > 0) {
-    if (netCount > MAXNETS) netCount = MAXNETS;
-    for (size_t i = 0; i < netCount; ++i) {
-      // TODO exclude the network we are connected to
-      memcpy(nets[i].bssid, WiFi.BSSID(i), 6);
-      nets[i].rssi = (int8_t)(WiFi.RSSI(i));
+    // Limit to a maximum
+    while (storeCount < MAXNETS and scanCount < netCount) {
+      // Exclude the AP BSSID from the list
+      if (memcmp(WiFi.BSSID(scanCount), apBSSID, WL_MAC_ADDR_LENGTH) != 0) {
+        memcpy(nets[storeCount].bssid, WiFi.BSSID(scanCount), WL_MAC_ADDR_LENGTH);
+        nets[storeCount].rssi = (int8_t)(WiFi.RSSI(scanCount));
+        storeCount++;
+      }
+      scanCount++;
     }
   }
   // Clear the scan results
   WiFi.scanDelete();
   // Return the number of networks found
+  netCount = storeCount;
   return netCount;
 }
 
@@ -129,7 +139,7 @@ int MLS::geoLocation() {
       if (i < netCount - 1) strcat(buf, ",\n");
       // Send the line
       geoClient.print(buf);
-      //Serial.print(buf);
+      Serial.print(buf);
       yield();
     }
     // Last line in json
