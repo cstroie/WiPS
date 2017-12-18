@@ -91,13 +91,11 @@ void APRS::time(char *buf, size_t len) {
 */
 bool APRS::authenticate(const char *callsign, const char *passcode) {
   bool result = false;
+  // Store the APRS callsign and passkey
   strncpy(aprsCallSign, (char*)callsign, sizeof(aprsCallSign));
   strncpy(aprsPassCode, (char*)passcode, sizeof(aprsPassCode));
+  // Only authenticate if connected
   if (aprsClient.connected()) {
-    // Read the welcome message
-    int rlen = aprsClient.readBytesUntil('\r', aprsPkt, sizeof(aprsPkt));
-    aprsPkt[rlen] = '\0';
-    Serial.print("[APRS<] "); Serial.print(aprsPkt);
     // Send the credentials
     strcpy_P(aprsPkt, PSTR("user "));
     strcat_P(aprsPkt, aprsCallSign);
@@ -108,21 +106,27 @@ bool APRS::authenticate(const char *callsign, const char *passcode) {
     strcat_P(aprsPkt, pstrSP);
     strcat  (aprsPkt, VERSION);
     strcat_P(aprsPkt, eol);
+    // Flush the welcome message
+    aprsClient.flush();
+    // Send the credentials
     send(aprsPkt);
     // Check the one-line response
-    rlen = aprsClient.readBytesUntil('\r', aprsPkt, sizeof(aprsPkt));
-    aprsPkt[rlen] = '\0';
-    Serial.print("[APRS<] "); Serial.print(aprsPkt);
-    // Tokenize the response
-    char* pch;
-    pch = strtok(aprsPkt, " ");
-    while (pch != NULL) {
+    result = aprsClient.findUntil("verified", "\r");
+    /*
+      int rlen = aprsClient.readBytesUntil('\n', aprsPkt, sizeof(aprsPkt));
+      aprsPkt[rlen] = '\0';
+      Serial.print("[APRS<] "); Serial.print(aprsPkt);
+      // Tokenize the response
+      char* pch;
+      pch = strtok(aprsPkt, " ");
+      while (pch != NULL) {
       if (strcmp(pch, "verified") == 0) {
         result = true;
         break;
       }
       pch = strtok(NULL, " ");
-    }
+      }
+    */
   }
   return result;
 }
@@ -226,7 +230,7 @@ void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
   strcat_P(aprsPkt, aprsPath);
   strcat_P(aprsPkt, PSTR("!"));
   // Coordinates in APRS format
-  setSymbol('/', 'x');
+  setSymbol('/', '>');
   setLocation(lat, lng);
   strcat_P(aprsPkt, aprsLocation);
   // Course and speed
