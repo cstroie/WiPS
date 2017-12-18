@@ -28,7 +28,7 @@ class MLS {
     void  init();
     int   wifiScan();
     int   geoLocation();
-    bool  getVector();
+    long  getMovement();
     float latitude;
     float longitude;
     float distance;

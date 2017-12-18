@@ -139,7 +139,7 @@ int MLS::geoLocation() {
       if (i < netCount - 1) strcat(buf, ",\n");
       // Send the line
       geoClient.print(buf);
-      Serial.print(buf);
+      //Serial.print(buf);
       yield();
     }
     // Last line in json
@@ -201,7 +201,7 @@ int MLS::geoLocation() {
 // Haversine
 // var φ1 = lat1.toRadians(), φ2 = lat2.toRadians(), Δλ = (lon2-lon1).toRadians(), R = 6371e3; // gives d in metres
 // var d = Math.acos( Math.sin(φ1)*Math.sin(φ2) + Math.cos(φ1)*Math.cos(φ2) * Math.cos(Δλ) ) * R;
-bool MLS::getVector() {
+long MLS::getMovement() {
   // Check if the geolocation seems valid
   if (validCoords and validPrevCoords) {
     // Earth radius in meters
@@ -216,13 +216,13 @@ bool MLS::getVector() {
     float crs = RAD_TO_DEG * atan2(sin(longitude - prevLongitude) * cos(latitude),
                                    cos(prevLatitude) * sin(latitude) - sin(prevLatitude) * cos(latitude) * cos(longitude - prevLongitude));
     bearing = (int)(crs + 360) % 360;
-    return true;
   }
   else
   {
-    // Store an invalid distance
+    // Store an invalid distance and zero speed
     distance = -1;
-    return false;
+    speed = 0;
   }
+  return (long)distance;
 }
 
