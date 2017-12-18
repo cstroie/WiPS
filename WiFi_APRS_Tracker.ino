@@ -31,7 +31,7 @@ APRS aprs;
 unsigned long geoNextTime = 0;        // Next time to geolocate
 unsigned long geoDelay    = 30000UL;  // Delay between geolocating
 unsigned long rpNextTime  = 0;        // Next time to report
-unsigned long rpDelay     = 300000UL; // Delay between reporting
+unsigned long rpDelay     = 10000UL;  // Delay between reporting
 
 /**
   Convert IPAddress to char array
@@ -101,6 +101,15 @@ void setup() {
 
   // Set the host name
   WiFi.hostname(NODENAME);
+#ifdef WIFI_SSID
+  Serial.print("WiFi connecting ");
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (!WiFi.isConnected()) {
+    Serial.print(".");
+    delay(1000);
+  };
+  Serial.println(F(" done."));
+#else
   // Try to connect to WiFi
   WiFiManager wifiManager;
   wifiManager.setTimeout(300);
@@ -108,6 +117,7 @@ void setup() {
   wifiManager.autoConnect(NODENAME);
   while (!wifiManager.autoConnect(NODENAME))
     delay(1000);
+#endif
 
   // Connected
   showWiFi();
@@ -143,15 +153,21 @@ void loop() {
       Serial.print(F("Geolocating... "));
       int acc = mls.geoLocation();
       if (mls.validCoords) {
+        // Local comment
+        const int commentSize = 64;
+        char comment[commentSize] = "";
+
         Serial.print(mls.latitude, 6); Serial.print(","); Serial.print(mls.longitude, 6);
         Serial.print(F(" acc ")); Serial.print(acc); Serial.println("m.");
 
-        if (mls.getVector()) {
+        if (mls.getMovement() >= acc) {
           Serial.print(F("Dst: ")); Serial.print(mls.distance, 2); Serial.print("m  ");
           Serial.print(F("Spd: ")); Serial.print(mls.speed, 2); Serial.print("m/s  ");
           Serial.print(F("Crs: ")); Serial.print(mls.bearing);
           Serial.println();
         }
+
+        snprintf_P(comment, commentSize, PSTR("Acc: %dm, Dst: %3dcm, Spd: %3dcm/s"), acc, (int)(mls.distance * 100), (int)(mls.speed * 100));
 
         // APRS if moving or time expired
         if (mls.speed >= 1 or (now > rpNextTime)) {
@@ -161,9 +177,9 @@ void loop() {
           if (aprs.connect()) {
             // Authenticate
             aprs.authenticate(APRS_CALLSIGN, APRS_PASSCODE);
-            // Report course and speed if the geolocation accuracy is good enough
-            if (acc < GEO_MINACC) aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449));
-            else                  aprs.sendPosition(mls.latitude, mls.longitude);
+            // Report course and speed if the geolocation accuracy better than moving distance
+            if (acc < mls.distance) aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449), 0, comment);
+            else                    aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, 0, 0, comment);
             // Close the connection
             aprs.stop();
           }
