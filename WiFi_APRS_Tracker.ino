@@ -31,7 +31,7 @@ APRS aprs;
 unsigned long geoNextTime = 0;        // Next time to geolocate
 unsigned long geoDelay    = 30000UL;  // Delay between geolocating
 unsigned long rpNextTime  = 0;        // Next time to report
-unsigned long rpDelay     = 10000UL;  // Delay between reporting
+unsigned long rpDelay     = 300000UL; // Delay between reporting
 
 /**
   Convert IPAddress to char array
@@ -79,6 +79,20 @@ void showWiFi() {
 }
 
 /**
+  Turn the built-in led off
+*/
+void ledOff() {
+  digitalWrite(LED_BUILTIN, HIGH);
+}
+
+/**
+  Turn the built-in led on
+*/
+void ledOn() {
+  digitalWrite(LED_BUILTIN, LOW);
+}
+
+/**
   Feedback notification when SoftAP is started
 */
 void wifiCallback(WiFiManager *wifiMgr) {
@@ -99,6 +113,9 @@ void setup() {
   Serial.print(" ");
   Serial.println(__DATE__);
 
+  // Initialize the LED_BUILTIN pin as an output
+  pinMode(LED_BUILTIN, OUTPUT);
+
   // Set the host name
   WiFi.hostname(NODENAME);
 #ifdef WIFI_SSID
@@ -118,6 +135,9 @@ void setup() {
   while (!wifiManager.autoConnect(NODENAME))
     delay(1000);
 #endif
+
+  // Led OFF
+  ledOff();
 
   // Connected
   showWiFi();
@@ -160,17 +180,22 @@ void loop() {
         Serial.print(mls.latitude, 6); Serial.print(","); Serial.print(mls.longitude, 6);
         Serial.print(F(" acc ")); Serial.print(acc); Serial.println("m.");
 
-        if (mls.getMovement() >= acc) {
+        bool moved = mls.getMovement() >= (acc >> 2);
+        if (moved) {
           Serial.print(F("Dst: ")); Serial.print(mls.distance, 2); Serial.print("m  ");
           Serial.print(F("Spd: ")); Serial.print(mls.speed, 2); Serial.print("m/s  ");
           Serial.print(F("Crs: ")); Serial.print(mls.bearing);
           Serial.println();
         }
 
-        snprintf_P(comment, commentSize, PSTR("Acc: %dm, Dst: %3dcm, Spd: %3dcm/s"), acc, (int)(mls.distance * 100), (int)(mls.speed * 100));
+        // Prepare the comment
+        int dst = 100 * mls.distance;
+        snprintf_P(comment, commentSize, PSTR("Acc: %dm, Dst: %d.%dm, Spd: %dkm/h"), acc, dst / 100, dst % 100, (int)(3.6 * mls.speed));
 
         // APRS if moving or time expired
-        if (mls.speed >= 1 or (now > rpNextTime)) {
+        if ((moved or (now > rpNextTime)) and acc >= 0) {
+          // Led ON
+          ledOn();
           // Repeat the report after a delay
           rpNextTime = now + rpDelay;
           // Connect to the server
@@ -178,11 +203,13 @@ void loop() {
             // Authenticate
             aprs.authenticate(APRS_CALLSIGN, APRS_PASSCODE);
             // Report course and speed if the geolocation accuracy better than moving distance
-            if (acc < mls.distance) aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449), 0, comment);
-            else                    aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, 0, 0, comment);
+            if (moved)  aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449), -1, comment);
+            else        aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, 0, -1, comment);
             // Close the connection
             aprs.stop();
           }
+          // Led OFF
+          ledOff();
         }
       }
       else {
@@ -194,3 +221,4 @@ void loop() {
     Serial.println();
   };
 }
+
