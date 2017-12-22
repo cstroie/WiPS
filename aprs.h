@@ -48,10 +48,14 @@ class APRS {
     bool connect(const char *server, int port);
     bool connect();
     void stop();
+    void setCallSign(const char *callsign);
+    void setPassCode(const char *passcode);
+    int  doPassCode(char *callsign);
     bool send(const char *pkt);
     bool send();
     void time(char *buf, size_t len);
     bool authenticate(const char *callsign, const char *passcode);
+    bool authenticate();
     void setSymbol(const char table, const char symbol);
     void sendStatus(const char *message);
     void sendMessage(const char *dest, const char *title, const char *message);
@@ -62,6 +66,8 @@ class APRS {
     void sendWeather(int temp, int hmdt, int pres, int srad);
     void sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits);
     void sendTelemetrySetup();
+    char aprsCallSign[10];
+    char aprsPassCode[10];
   private:
     NTP  ntp;
     WiFiClient aprsClient;
@@ -69,8 +75,6 @@ class APRS {
     char  aprsServer[50];             // CWOP APRS-IS server address to connect to
     int   aprsPort;                   // CWOP APRS-IS port
     char  aprsLocation[20];
-    char  aprsCallSign[10];
-    char  aprsPassCode[10];
     char  aprsTable;
     char  aprsSymbol;
     int   aprsTlmSeq        = 0;      // Telemetry sequence mumber

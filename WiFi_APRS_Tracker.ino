@@ -151,6 +151,9 @@ void setup() {
   // Configure APRS
   aprs.init(APRS_SERVER, APRS_PORT);
   aprs.setNTP(ntp);
+  aprs.setCallSign(APRS_CALLSIGN);
+  Serial.print(F("APRS callsign: ")); Serial.print(aprs.aprsCallSign);
+  Serial.print(F(", passcode: ")); Serial.println(aprs.aprsPassCode);
 }
 
 /**
@@ -158,15 +161,15 @@ void setup() {
 */
 void loop() {
   // Uptime
-  char upt[32] = "";
-  unsigned long now = ntp.uptime(upt, sizeof(upt));
-  aprs.time(upt, sizeof(upt));
+  unsigned long now = millis() / 1000;
   // Check if we should geolocate
   if (now >= geoNextTime) {
     // Repeat the geolocation after a delay
     geoNextTime = now + geoDelay;
-    // Log the uptime
-    Serial.print("["); Serial.print(upt); Serial.print("] ");
+    // Log the APRS time
+    char aprsTime[10] = "";
+    aprs.time(aprsTime, sizeof(aprsTime));
+    Serial.print("["); Serial.print(aprsTime); Serial.print("] ");
 
     // Scan the WiFi access points
     Serial.print(F("WiFi networks... "));
@@ -219,7 +222,7 @@ void loop() {
           // Connect to the server
           if (aprs.connect()) {
             // Authenticate
-            aprs.authenticate(APRS_CALLSIGN, APRS_PASSCODE);
+            aprs.authenticate();
             // Report course and speed if the geolocation accuracy better than moving distance
             if (moved)  aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, comment);
             else        aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, 0, -1, comment);

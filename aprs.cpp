@@ -45,6 +45,53 @@ void APRS::stop() {
 }
 
 /**
+  Set the APRS callsign and compute the passcode
+*/
+void APRS::setCallSign(const char *callsign) {
+  // Keep the callsign
+  strncpy(aprsCallSign, (char*)callsign, sizeof(aprsCallSign));
+  // Compute the passcode
+  snprintf_P(aprsPassCode, sizeof(aprsPassCode), PSTR("%3d"), doPassCode((char*)callsign));
+}
+
+/**
+  Set your own passcode (not necessary)
+*/
+void APRS::setPassCode(const char *passcode) {
+  strncpy(aprsPassCode, (char*)passcode, sizeof(aprsPassCode));
+}
+
+/**
+  Compute the passcode from the callsign
+*/
+int APRS::doPassCode(char *callsign) {
+  char rootCall[10]; // need to copy call to remove ssid from parse
+  char *p1 = rootCall;
+  int hash;
+  int i, len;
+  char *ptr = rootCall;
+
+  // Uppercase and find the bare callsign
+  while ((*callsign != '-') && (*callsign != '\0'))
+    *p1++ = toupper((int)(*callsign++));
+  *p1 = '\0';
+
+  // Initialize with the key value
+  hash = 0x73e2;
+  i = 0;
+  len = (int)strlen(rootCall);
+
+  // Loop through the string two bytes at a time
+  while (i < len) {
+    hash ^= (unsigned char)(*ptr++) << 8; // xor high byte with accumulated hash
+    hash ^= (*ptr++);                     // xor low byte with accumulated hash
+    i += 2;
+  }
+  // Mask off the high bit so number is always positive
+  return (int)(hash & 0x7fff);
+}
+
+/**
   Send an APRS packet and, eventually, print it to serial line
 
   @param *pkt the packet to send
@@ -90,10 +137,17 @@ void APRS::time(char *buf, size_t len) {
   user FW0690 pass -1 vers WxSta 0.2"
 */
 bool APRS::authenticate(const char *callsign, const char *passcode) {
-  bool result = false;
   // Store the APRS callsign and passkey
   strncpy(aprsCallSign, (char*)callsign, sizeof(aprsCallSign));
   strncpy(aprsPassCode, (char*)passcode, sizeof(aprsPassCode));
+  return authenticate();
+}
+/**
+  Send APRS authentication data
+  user FW0690 pass -1 vers WxSta 0.2"
+*/
+bool APRS::authenticate() {
+  bool result = false;
   // Only authenticate if connected
   if (aprsClient.connected()) {
     // Send the credentials
@@ -115,7 +169,7 @@ bool APRS::authenticate(const char *callsign, const char *passcode) {
     /*
       int rlen = aprsClient.readBytesUntil('\n', aprsPkt, sizeof(aprsPkt));
       aprsPkt[rlen] = '\0';
-      Serial.print("[APRS<] "); Serial.print(aprsPkt);
+      Serial.print("[APRS  <] "); Serial.print(aprsPkt);
       // Tokenize the response
       char* pch;
       pch = strtok(aprsPkt, " ");
@@ -131,6 +185,9 @@ bool APRS::authenticate(const char *callsign, const char *passcode) {
   return result;
 }
 
+/**
+  Set the symbols table and the symbol
+*/
 void APRS::setSymbol(const char table, const char symbol) {
   aprsTable  = table;
   aprsSymbol = symbol;
