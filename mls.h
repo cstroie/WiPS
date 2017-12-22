@@ -46,6 +46,16 @@ class MLS {
     float         prevLongitude;
     unsigned long prevTime;
     unsigned long currTime;
+
+    struct Less {
+      Less(const MLS& c): mls(c) {}
+      const MLS& mls;
+      bool operator () (const void* x, const void* y) {
+        BSSID_RSSI a = *(BSSID_RSSI*)x;
+        BSSID_RSSI b = *(BSSID_RSSI*)y;
+        return a.bssid - b.bssid;
+      }
+    };
 };
 
 #endif /* MLS_H */

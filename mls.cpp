@@ -45,6 +45,11 @@ int MLS::wifiScan() {
   WiFi.scanDelete();
   // Return the number of networks found
   netCount = storeCount;
+  // Sort the array
+  int netslen = sizeof(nets) / sizeof(nets[0]);
+  //qsort(nets, netCount, sizeof(nets[0]), Less(*this));
+  std::sort(nets, netCount, sizeof(nets[0]), Less(*this));
+  // Return the net count
   return netCount;
 }
 
