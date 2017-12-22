@@ -9,7 +9,7 @@
 #ifndef MLS_H
 #define MLS_H
 
-#define MAXNETS 64
+#define MAXNETS 32
 
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
@@ -26,7 +26,7 @@ class MLS {
   public:
     MLS();
     void  init();
-    int   wifiScan();
+    int   wifiScan(bool sort = false);
     int   geoLocation();
     long  getMovement();
     float latitude;

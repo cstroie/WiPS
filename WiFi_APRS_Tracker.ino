@@ -157,24 +157,26 @@ void setup() {
   Main Arduino loop
 */
 void loop() {
-  // Current uptime
-  unsigned long now = millis() / 1000;
+  // Uptime
+  char upt[32] = "";
+  unsigned long now = ntp.uptime(upt, sizeof(upt));
+  aprs.time(upt, sizeof(upt));
   // Check if we should geolocate
   if (now >= geoNextTime) {
     // Repeat the geolocation after a delay
     geoNextTime = now + geoDelay;
     // Log the uptime
-    Serial.print("["); Serial.print(now); Serial.println("]");
+    Serial.print("["); Serial.print(upt); Serial.print("] ");
 
     // Scan the WiFi access points
-    Serial.print(F("Scanning WiFi networks... "));
-    int found = mls.wifiScan();
+    Serial.print(F("WiFi networks... "));
+    int found = mls.wifiScan(false);
     Serial.print(found);
-    Serial.println(" found");
+    Serial.print(" found, ");
 
     // Get the coordinates
     if (found > 0) {
-      Serial.print(F("Geolocating... "));
+      Serial.print(F("geolocating... "));
       int acc = mls.geoLocation();
       if (mls.validCoords) {
         // Local comment
@@ -184,8 +186,9 @@ void loop() {
         Serial.print(mls.latitude, 6); Serial.print(","); Serial.print(mls.longitude, 6);
         Serial.print(F(" acc ")); Serial.print(acc); Serial.println("m.");
 
-        bool moved = mls.getMovement() >= (acc >> 2);
+        bool moved = mls.getMovement() >= (acc / 2);
         if (moved) {
+          Serial.print(F("          "));
           Serial.print(F("Dst: ")); Serial.print(mls.distance, 2); Serial.print("m  ");
           Serial.print(F("Spd: ")); Serial.print(mls.speed, 2); Serial.print("m/s  ");
           Serial.print(F("Crs: ")); Serial.print(mls.bearing);
@@ -209,16 +212,16 @@ void loop() {
             // Not moving, increase the delay to a maximum
             rpDelay += rpDelayStep;
             if (rpDelay > rpDelayMax) rpDelay = rpDelayMax;
-        }
-        // Repeat the report after a the delay
-        rpNextTime = now + rpDelay;
-        
-        // Connect to the server
-        if (aprs.connect()) {
+          }
+          // Repeat the report after a the delay
+          rpNextTime = now + rpDelay;
+
+          // Connect to the server
+          if (aprs.connect()) {
             // Authenticate
             aprs.authenticate(APRS_CALLSIGN, APRS_PASSCODE);
             // Report course and speed if the geolocation accuracy better than moving distance
-            if (moved)  aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, (int)(mls.speed * 1.94384449), -1, comment);
+            if (moved)  aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, comment);
             else        aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, 0, -1, comment);
             // Close the connection
             aprs.stop();
@@ -233,7 +236,6 @@ void loop() {
         Serial.println("m.");
       }
     }
-    Serial.println();
   };
 }
 

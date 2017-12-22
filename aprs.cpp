@@ -57,7 +57,7 @@ bool APRS::send(const char *pkt) {
     yield();
 #endif
 #ifdef DEBUG
-    Serial.print(F("[APRS>] "));
+    Serial.print(F("[APRS  >] "));
     Serial.print(pkt);
 #endif
   }

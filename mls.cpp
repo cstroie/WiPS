@@ -20,7 +20,7 @@ void MLS::init() {
 
   @return the number of networks found
 */
-int MLS::wifiScan() {
+int MLS::wifiScan(bool sort) {
   // Keep the AP BSSID
   uint8_t apBSSID[WL_MAC_ADDR_LENGTH];
   memcpy(apBSSID, WiFi.BSSID(), WL_MAC_ADDR_LENGTH);
@@ -43,8 +43,23 @@ int MLS::wifiScan() {
   }
   // Clear the scan results
   WiFi.scanDelete();
-  // Return the number of networks found
+  // Keep the number of networks found
   netCount = storeCount;
+  if (sort) {
+    // Sort the networks by RSSI, descending
+    BSSID_RSSI tmp;
+    for (size_t i = 1; i < netCount; i++) {
+      for (size_t j = i; j > 0 && (nets[j - 1].rssi < nets[j].rssi); j--) {
+        memcpy(tmp.bssid, nets[j - 1].bssid, WL_MAC_ADDR_LENGTH);
+        tmp.rssi = nets[j - 1].rssi;
+        memcpy(nets[j - 1].bssid, nets[j].bssid, WL_MAC_ADDR_LENGTH);
+        nets[j - 1].rssi = nets[j].rssi;
+        memcpy(nets[j].bssid, tmp.bssid, WL_MAC_ADDR_LENGTH);
+        nets[j].rssi = tmp.rssi;
+      }
+    }
+  }
+  // Return the number of networks found
   return netCount;
 }
 
@@ -223,6 +238,7 @@ long MLS::getMovement() {
     distance = -1;
     speed = 0;
   }
+  // Return the distance
   return (long)distance;
 }
 
