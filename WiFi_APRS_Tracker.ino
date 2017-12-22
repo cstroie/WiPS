@@ -27,11 +27,14 @@ NTP ntp;
 #include "aprs.h"
 APRS aprs;
 
-
-unsigned long geoNextTime = 0;        // Next time to geolocate
-unsigned long geoDelay    = 30000UL;  // Delay between geolocating
-unsigned long rpNextTime  = 0;        // Next time to report
-unsigned long rpDelay     = 300000UL; // Delay between reporting
+// Timings
+unsigned long geoNextTime = 0;    // Next time to geolocate
+unsigned long geoDelay    = 30;   // Delay between geolocating
+unsigned long rpNextTime  = 0;    // Next time to report
+unsigned long rpDelay     = 30;   // Delay between reporting
+unsigned long rpDelayStep = 30;   // Step to increase the delay between reporting with
+unsigned long rpDelayMin  = 30;   // Minimum delay between reporting
+unsigned long rpDelayMax  = 1800; // Maximum delay between reporting
 
 /**
   Convert IPAddress to char array
@@ -154,13 +157,14 @@ void setup() {
   Main Arduino loop
 */
 void loop() {
-  unsigned long now = millis();
+  // Current uptime
+  unsigned long now = millis() / 1000;
   // Check if we should geolocate
   if (now >= geoNextTime) {
-    // Repeat after a delay
+    // Repeat the geolocation after a delay
     geoNextTime = now + geoDelay;
     // Log the uptime
-    Serial.print("["); Serial.print(now / 1000); Serial.println("]");
+    Serial.print("["); Serial.print(now); Serial.println("]");
 
     // Scan the WiFi access points
     Serial.print(F("Scanning WiFi networks... "));
@@ -193,13 +197,24 @@ void loop() {
         snprintf_P(comment, commentSize, PSTR("Acc: %dm, Dst: %d.%dm, Spd: %dkm/h"), acc, dst / 100, dst % 100, (int)(3.6 * mls.speed));
 
         // APRS if moving or time expired
-        if ((moved or (now > rpNextTime)) and acc >= 0) {
+        if ((moved or (now >= rpNextTime)) and acc >= 0) {
           // Led ON
           ledOn();
-          // Repeat the report after a delay
-          rpNextTime = now + rpDelay;
-          // Connect to the server
-          if (aprs.connect()) {
+          // Adjust the delay
+          if (moved) {
+            // Reset the delay to minimum
+            rpDelay = rpDelayMin;
+          }
+          else {
+            // Not moving, increase the delay to a maximum
+            rpDelay += rpDelayStep;
+            if (rpDelay > rpDelayMax) rpDelay = rpDelayMax;
+        }
+        // Repeat the report after a the delay
+        rpNextTime = now + rpDelay;
+        
+        // Connect to the server
+        if (aprs.connect()) {
             // Authenticate
             aprs.authenticate(APRS_CALLSIGN, APRS_PASSCODE);
             // Report course and speed if the geolocation accuracy better than moving distance
