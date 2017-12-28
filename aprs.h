@@ -20,10 +20,10 @@
 
 // APRS constants
 const char aprsPath[]     PROGMEM = ">CBAPRS,TCPIP*:";
-const char aprsTlmPARM[]  PROGMEM = "PARM.Vcc,RSSI,Heap,IRed,Visb,PROBE,ATMO,LUX,SAT,VCC,HT,RB,TM";
-const char aprsTlmEQNS[]  PROGMEM = "EQNS.0,0.004,2.5,0,-1,0,0,256,0,0,256,0,0,256,0";
-const char aprsTlmUNIT[]  PROGMEM = "UNIT.V,dBm,Bytes,units,units,prb,on,on,sat,bad,ht,rb,er";
-const char aprsTlmBITS[]  PROGMEM = "BITS.10011111, ";
+const char aprsTlmPARM[]  PROGMEM = "PARM.Vcc,RSSI,Heap,Acc,Spd,PROBE,Fix,Fst,Slw,VCC,HT,RB,TM";
+const char aprsTlmEQNS[]  PROGMEM = "EQNS.0,0.004,2.5,0,-1,0,0,256,0,0,1,0,0.0008,0,0";
+const char aprsTlmUNIT[]  PROGMEM = "UNIT.V,dBm,Bytes,m,m/s,prb,on,fst,slw,bad,ht,rb,er";
+const char aprsTlmBITS[]  PROGMEM = "BITS.11111111, ";
 
 // Various constants
 const char pstrD[]  PROGMEM = "%d";
@@ -61,8 +61,8 @@ class APRS {
     void sendPosition(float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL, const char *object = NULL);
     void sendObjectPosition(float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL);
     void sendWeather(int temp, int hmdt, int pres, int srad);
-    void sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits);
-    void sendTelemetrySetup();
+    void sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits, const char *object = NULL);
+    void sendTelemetrySetup(const char *object = NULL);
     char aprsCallSign[10];
     char aprsPassCode[10];
     char aprsObjectNm[10];
@@ -75,10 +75,8 @@ class APRS {
     char  aprsLocation[20];
     char  aprsTable;
     char  aprsSymbol;
-    int   aprsTlmSeq        = 0;      // Telemetry sequence mumber
-    bool  PROBE             = false;  // True if the station is being probed
+    int   aprsTlmSeq        = 999;    // Telemetry sequence mumber
     char  DEVICEID[6];                // t_hing A_rduino E_SP8266 W_iFi 4_
-
 };
 
 #endif /* APRS_H */

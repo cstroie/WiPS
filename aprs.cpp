@@ -335,7 +335,7 @@ void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
     strcat(aprsPkt, NODENAME);
     strcat_P(aprsPkt, pstrSL);
     strcat(aprsPkt, VERSION);
-    if (PROBE) strcat_P(aprsPkt, PSTR(" [PROBE]"));
+    //if (PROBE) strcat_P(aprsPkt, PSTR(" [PROBE]"));
   }
   strcat_P(aprsPkt, eol);
   send(aprsPkt);
@@ -419,11 +419,11 @@ void APRS::sendWeather(int temp, int hmdt, int pres, int srad) {
   @param luxIrd raw infrared illuminance
   @bits digital inputs
 */
-void APRS::sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits) {
+void APRS::sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits, const char *object) {
   // Increment the telemetry sequence number, reset it if exceeds 999
   if (++aprsTlmSeq > 999) aprsTlmSeq = 0;
   // Send the telemetry setup if the sequence number is 0
-  if (aprsTlmSeq == 0) sendTelemetrySetup();
+  if (aprsTlmSeq == 0) sendTelemetrySetup(object);
   // Compose the APRS packet
   const int bufSize = 40;
   char buf[bufSize] = "";
@@ -440,16 +440,20 @@ void APRS::sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits) {
 /**
   Send APRS telemetry setup
 */
-void APRS::sendTelemetrySetup() {
+void APRS::sendTelemetrySetup(const char *object) {
   // The object's call sign has to be padded with spaces until 9 chars long
   const int padSize = 9;
   char padCallSign[padSize] = " ";
-  // Copy the call sign from PROGMEM
-  strcpy_P(padCallSign, aprsCallSign);
+  // Copy the call sign or object name
+  if (object != NULL)
+    strcpy(padCallSign, object);
+  else
+    strcpy_P(padCallSign, aprsCallSign);
   // Pad with spaces, then make sure it ends with '\0'
   for (int i = strlen(padCallSign); i < padSize; i++)
     padCallSign[i] = ' ';
   padCallSign[padSize] = '\0';
+
   // Create the common header of the packet
   strcpy_P(aprsPkt, aprsCallSign);
   strcat_P(aprsPkt, aprsPath);
