@@ -11,6 +11,9 @@
 // User settings
 #include "config.h"
 
+// Software version
+#include "version.h"
+
 // WiFi
 #include <ESP8266WiFi.h>
 #include <WiFiManager.h>
@@ -35,6 +38,9 @@ unsigned long rpDelay     = 30;   // Delay between reporting
 unsigned long rpDelayStep = 30;   // Step to increase the delay between reporting with
 unsigned long rpDelayMin  = 30;   // Minimum delay between reporting
 unsigned long rpDelayMax  = 1800; // Maximum delay between reporting
+
+// Smoothen accuracy
+int sacc;
 
 /**
   Convert IPAddress to char array
@@ -181,6 +187,11 @@ void loop() {
     if (found > 0) {
       Serial.print(F("geolocating... "));
       int acc = mls.geoLocation();
+      // Exponential smoothing the accuracy
+      if (sacc < 0)
+        sacc = acc;
+      else
+        sacc = (((sacc << 2) - sacc + acc) + 2) >> 2;
       if (mls.validCoords) {
         // Local comment
         const int commentSize = 64;
@@ -189,7 +200,7 @@ void loop() {
         Serial.print(mls.latitude, 6); Serial.print(","); Serial.print(mls.longitude, 6);
         Serial.print(F(" acc ")); Serial.print(acc); Serial.println("m.");
 
-        bool moved = mls.getMovement() >= (acc / 2);
+        bool moved = mls.getMovement() >= (sacc / 3);
         if (moved) {
           Serial.print(F("          "));
           Serial.print(F("Dst: ")); Serial.print(mls.distance, 2); Serial.print("m  ");
