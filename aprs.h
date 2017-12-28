@@ -16,12 +16,7 @@
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
 #include "ntp.h"
-
-// Device specific constants
-const char NODENAME[] = "WiFiTrk";
-const char nodename[] = "wifitrk";
-const char VERSION[]  = "0.2.3";
-
+#include "version.h"
 
 // APRS constants
 const char aprsPath[]     PROGMEM = ">CBAPRS,TCPIP*:";
