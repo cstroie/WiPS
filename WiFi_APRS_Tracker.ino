@@ -43,7 +43,7 @@ ADC_MODE(ADC_VCC);
 
 // Timings
 unsigned long geoNextTime = 0;    // Next time to geolocate
-unsigned long geoDelay    = 30;   // Delay between geolocating
+unsigned long geoDelay    = 20;   // Delay between geolocating
 unsigned long rpNextTime  = 0;    // Next time to report
 unsigned long rpDelay     = 30;   // Delay between reporting
 unsigned long rpDelayStep = 30;   // Step to increase the delay between reporting with
@@ -314,7 +314,7 @@ void loop() {
             aprs.authenticate();
             // Prepare the comment
             int dst = 100 * mls.distance;
-            snprintf_P(buf, bufSize, PSTR("Acc: %dm, Dst: %d.%dm, Spd: %dkm/h, Vcc: %d.%3dV, RSSI: %ddBm"), acc, dst / 100, dst % 100, (int)(3.6 * mls.speed), vcc / 1000, vcc % 1000, rssi);
+            snprintf_P(buf, bufSize, PSTR("Acc: %dm, Dst: %d.%dm, Spd: %dkm/h, Vcc: %d.%1dV, RSSI: %ddBm"), acc, dst / 100, dst % 100, (int)(3.6 * mls.speed), vcc / 1000, vcc % 1000, rssi);
             // Report course and speed if the geolocation accuracy better than moving distance
             if (moving) aprs.sendObjectPosition(mls.latitude, mls.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, buf);
             else        aprs.sendObjectPosition(mls.latitude, mls.longitude, mls.bearing, 0, -1, buf);
