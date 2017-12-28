@@ -18,6 +18,12 @@
 #include <ESP8266WiFi.h>
 #include <WiFiManager.h>
 
+// OTA
+#include <ESP8266mDNS.h>
+#include <ArduinoOTA.h>
+int otaProgress       = 0;
+int otaPort           = 8266;
+
 // Mozilla Location Services
 #include "mls.h"
 MLS mls;
@@ -151,6 +157,46 @@ void setup() {
   // Connected
   showWiFi();
 
+  // OTA Update
+  ArduinoOTA.setPort(otaPort);
+  ArduinoOTA.setHostname(NODENAME);
+#ifdef OTA_PASS
+  ArduinoOTA.setPassword((const char *)OTA_PASS);
+#endif
+
+  ArduinoOTA.onStart([]() {
+    Serial.println(F("OTA Start"));
+  });
+
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nOTA Finished");
+  });
+
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    int otaPrg = progress / (total / 100);
+    if (otaProgress != otaPrg) {
+      otaProgress = otaPrg;
+      Serial.printf("Progress: %u%%\r", otaProgress * 100);
+    }
+  });
+
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR)
+      Serial.println(F("Auth Failed"));
+    else if (error == OTA_BEGIN_ERROR)
+      Serial.println(F("Begin Failed"));
+    else if (error == OTA_CONNECT_ERROR)
+      Serial.println(F("Connect Failed"));
+    else if (error == OTA_RECEIVE_ERROR)
+      Serial.println(F("Receive Failed"));
+    else if (error == OTA_END_ERROR)
+      Serial.println(F("End Failed"));
+  });
+
+  ArduinoOTA.begin();
+  Serial.println(F("OTA Ready"));
+
   // Configure NTP
   ntp.init(NTP_SERVER);
 
@@ -166,8 +212,13 @@ void setup() {
   Main Arduino loop
 */
 void loop() {
+  // Handle OTA
+  ArduinoOTA.handle();
+  yield();
+
   // Uptime
   unsigned long now = millis() / 1000;
+
   // Check if we should geolocate
   if (now >= geoNextTime) {
     // Repeat the geolocation after a delay
