@@ -46,6 +46,7 @@ class APRS {
     void setCallSign(const char *callsign);
     void setPassCode(const char *passcode);
     int  doPassCode(char *callsign);
+    void setObjectName();
     bool send(const char *pkt);
     bool send();
     void time(char *buf, size_t len);
@@ -57,12 +58,14 @@ class APRS {
     void coordinates(char *buf, float lat, float lng, char table, char symbol);
     void coordinates(char *buf, float lat, float lng);
     void setLocation(float lat, float lng);
-    void sendPosition(float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL);
+    void sendPosition(float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL, const char *object = NULL);
+    void sendObjectPosition(float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL);
     void sendWeather(int temp, int hmdt, int pres, int srad);
     void sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits);
     void sendTelemetrySetup();
     char aprsCallSign[10];
     char aprsPassCode[10];
+    char aprsObjectNm[10];
   private:
     NTP  ntp;
     WiFiClient aprsClient;

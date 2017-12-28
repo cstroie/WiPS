@@ -146,7 +146,6 @@ void setup() {
   WiFiManager wifiManager;
   wifiManager.setTimeout(300);
   wifiManager.setAPCallback(wifiCallback);
-  wifiManager.autoConnect(NODENAME);
   while (!wifiManager.autoConnect(NODENAME))
     delay(1000);
 #endif
@@ -205,7 +204,8 @@ void setup() {
   aprs.setNTP(ntp);
   aprs.setCallSign(APRS_CALLSIGN);
   Serial.print(F("APRS callsign: ")); Serial.print(aprs.aprsCallSign);
-  Serial.print(F(", passcode: ")); Serial.println(aprs.aprsPassCode);
+  Serial.print(F(", passcode: ")); Serial.print(aprs.aprsPassCode);
+  Serial.print(F(", object: ")); Serial.println(aprs.aprsObjectNm);
 }
 
 /**
@@ -286,8 +286,8 @@ void loop() {
             // Authenticate
             aprs.authenticate();
             // Report course and speed if the geolocation accuracy better than moving distance
-            if (moved)  aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, comment);
-            else        aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, 0, -1, comment);
+            if (moved)  aprs.sendObjectPosition(mls.latitude, mls.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, comment);
+            else        aprs.sendObjectPosition(mls.latitude, mls.longitude, mls.bearing, 0, -1, comment);
             // Close the connection
             aprs.stop();
           }

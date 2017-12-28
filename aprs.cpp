@@ -52,6 +52,8 @@ void APRS::setCallSign(const char *callsign) {
   strncpy(aprsCallSign, (char*)callsign, sizeof(aprsCallSign));
   // Compute the passcode
   snprintf_P(aprsPassCode, sizeof(aprsPassCode), PSTR("%3d"), doPassCode((char*)callsign));
+  // Set the APRS object name
+  setObjectName();
 }
 
 /**
@@ -89,6 +91,18 @@ int APRS::doPassCode(char *callsign) {
   }
   // Mask off the high bit so number is always positive
   return (int)(hash & 0x7fff);
+}
+
+/**
+  Set the APRS object name as 'WAT' + chip ID
+*/
+void APRS::setObjectName() {
+  snprintf_P(aprsObjectNm, sizeof(aprsObjectNm), PSTR("WAT%06X"), ESP.getChipId());
+  // Pad with spaces
+  for (int i = strlen(aprsObjectNm); i < sizeof(aprsObjectNm) - 1; i++)
+    aprsObjectNm[i] = '_';
+  // Make sure it ends with null
+  aprsObjectNm[sizeof(aprsObjectNm) - 1] = '\0';
 }
 
 /**
@@ -277,7 +291,7 @@ void APRS::setLocation(float lat, float lng) {
 
   @param comment the comment to append
 */
-void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const char *comment) {
+void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const char *comment, const char *object) {
   // Local buffer
   const int bufSize = 20;
   char buf[bufSize] = "";
@@ -285,7 +299,19 @@ void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
   // Compose the APRS packet
   strcpy_P(aprsPkt, aprsCallSign);
   strcat_P(aprsPkt, aprsPath);
-  strcat_P(aprsPkt, PSTR("!"));
+
+  // Object
+  if (object != NULL) {
+    strcat_P(aprsPkt, PSTR(";"));
+    strcat(aprsPkt, object);
+    strcat_P(aprsPkt, PSTR("*"));
+    time(buf, bufSize);
+    strncat(aprsPkt, buf, bufSize);
+  }
+  else {
+    strcat_P(aprsPkt, PSTR("!"));
+  }
+
   // Coordinates in APRS format
   setSymbol('/', '>');
   setLocation(lat, lng);
@@ -313,6 +339,16 @@ void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
   }
   strcat_P(aprsPkt, eol);
   send(aprsPkt);
+}
+
+/**
+  Send APRS object position and altitude
+  FW0690>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$/A=000000 comment
+
+  @param comment the comment to append
+*/
+void APRS::sendObjectPosition(float lat, float lng, int cse, int spd, float alt, const char *comment) {
+  sendPosition(lat, lng, cse, spd, alt, comment, aprsObjectNm);
 }
 
 /**
