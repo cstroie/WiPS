@@ -232,13 +232,11 @@ long MLS::getMovement() {
                                    cos(prevLatitude) * sin(latitude) - sin(prevLatitude) * cos(latitude) * cos(longitude - prevLongitude));
     bearing = (int)(crs + 360) % 360;
   }
-  else
-  {
+  else {
     // Store an invalid distance and zero speed
-    distance = -1;
+    distance = 0;
     speed = 0;
   }
   // Return the distance
   return (long)distance;
 }
-

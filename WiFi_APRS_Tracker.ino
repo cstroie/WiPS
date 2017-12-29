@@ -124,6 +124,34 @@ void wifiCallback(WiFiManager *wifiMgr) {
 }
 
 /**
+  Try to connect to WiFi
+*/
+void wifiConnect() {
+  // Set the host name
+  WiFi.hostname(NODENAME);
+  // Led ON
+  ledOn();
+  // Try to connect to WiFi
+#ifdef WIFI_SSID
+  Serial.print("WiFi connecting ");
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (!WiFi.isConnected()) {
+    Serial.print(".");
+    delay(1000);
+  };
+  Serial.println(F(" done."));
+#else
+  WiFiManager wifiManager;
+  wifiManager.setTimeout(300);
+  wifiManager.setAPCallback(wifiCallback);
+  while (!wifiManager.autoConnect(NODENAME))
+    delay(1000);
+#endif
+  // Led OFF
+  ledOff();
+}
+
+/**
   Main Arduino setup function
 */
 void setup() {
@@ -139,28 +167,8 @@ void setup() {
   // Initialize the LED_BUILTIN pin as an output
   pinMode(LED_BUILTIN, OUTPUT);
 
-  // Set the host name
-  WiFi.hostname(NODENAME);
-#ifdef WIFI_SSID
-  Serial.print("WiFi connecting ");
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (!WiFi.isConnected()) {
-    Serial.print(".");
-    delay(1000);
-  };
-  Serial.println(F(" done."));
-#else
-  // Try to connect to WiFi
-  WiFiManager wifiManager;
-  wifiManager.setTimeout(300);
-  wifiManager.setAPCallback(wifiCallback);
-  while (!wifiManager.autoConnect(NODENAME))
-    delay(1000);
-#endif
-
-  // Led OFF
-  ledOff();
-
+  // Try to connect
+  wifiConnect();
   // Connected
   showWiFi();
 
@@ -232,6 +240,9 @@ void loop() {
     // Repeat the geolocation after a delay
     geoNextTime = now + geoDelay;
 
+    // Make sure we are connected
+    if (!WiFi.isConnected()) wifiConnect();
+
     // Set the telemetry bit 7 if the tracker is being probed
     if (PROBE) aprsTlmBits = B10000000;
     else       aprsTlmBits = B00000000;
@@ -264,7 +275,7 @@ void loop() {
 
       if (mls.validCoords) {
         // Local buffer
-        const int bufSize = 64;
+        const int bufSize = 200;
         char buf[bufSize] = "";
 
         Serial.print(mls.latitude, 6); Serial.print(","); Serial.print(mls.longitude, 6);
@@ -292,42 +303,50 @@ void loop() {
         if ((moving or (now >= rpNextTime)) and acc >= 0) {
           // Led ON
           ledOn();
-          // Adjust the delay
-          if (moving) {
-            // Reset the delay to minimum
-            rpDelay = rpDelayMin;
-            // Set the telemetry bits 4 and 5 if moving, according to the speed
-            if (mls.speed > 10) aprsTlmBits |= B00100000;
-            else                aprsTlmBits |= B00010000;
-          }
-          else {
-            // Not moving, increase the delay to a maximum
-            rpDelay += rpDelayStep;
-            if (rpDelay > rpDelayMax) rpDelay = rpDelayMax;
-          }
-          // Repeat the report after a the delay
-          rpNextTime = now + rpDelay;
 
           // Connect to the server
           if (aprs.connect()) {
             // Authenticate
-            aprs.authenticate();
-            // Prepare the comment
-            int dst = 100 * mls.distance;
-            snprintf_P(buf, bufSize, PSTR("Acc: %dm, Dst: %d.%dm, Spd: %dkm/h, Vcc: %d.%1dV, RSSI: %ddBm"), acc, dst / 100, dst % 100, (int)(3.6 * mls.speed), vcc / 1000, vcc % 1000, rssi);
-            // Report course and speed if the geolocation accuracy better than moving distance
-            if (moving) aprs.sendObjectPosition(mls.latitude, mls.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, buf);
-            else        aprs.sendObjectPosition(mls.latitude, mls.longitude, mls.bearing, 0, -1, buf);
-            // Send the telemetry
-            //aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed / 0.0008)), aprsTlmBits, aprs.aprsObjectNm);
-            // Send the status
-            //snprintf_P(buf, bufSize, PSTR("%s/%s, Vcc: %d.%3dV, RSSI: %ddBm"), NODENAME, VERSION, vcc / 1000, vcc % 1000, rssi);
-            //aprs.sendStatus(buf);
+            if (aprs.authenticate()) {
+              // Prepare the comment
+              int dst = 100 * mls.distance;
+              //snprintf_P(buf, bufSize, PSTR("Acc: %dm, Dst: %d.%dm, Spd: %dkm/h, Vcc: %d.%1dV, RSSI: %ddBm"), acc, dst / 100, dst % 100, (int)(3.6 * mls.speed), vcc / 1000, vcc % 1000, rssi);
+              snprintf_P(buf, bufSize, PSTR("Acc: %dm, Dst: %d.%dm, Spd: %dkm/h"), acc, dst / 100, dst % 100, (int)(3.6 * mls.speed));
+              // Report course and speed if the geolocation accuracy better than moving distance
+              if (moving) {
+                // Report
+                aprs.sendObjectPosition(mls.latitude, mls.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, buf);
+                // Reset the delay to minimum
+                rpDelay = rpDelayMin;
+                // Set the telemetry bits 4 and 5 if moving, according to the speed
+                if (mls.speed > 10) aprsTlmBits |= B00100000;
+                else                aprsTlmBits |= B00010000;
+              }
+              else {
+                // Report
+                aprs.sendObjectPosition(mls.latitude, mls.longitude, mls.bearing, 0, -1, buf);
+                // Not moving, increase the delay to a maximum
+                rpDelay += rpDelayStep;
+                if (rpDelay > rpDelayMax) rpDelay = rpDelayMax;
+              }
+              // Send the telemetry
+              //aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed / 0.0008)), aprsTlmBits, aprs.aprsObjectNm);
+              // Send the status
+              //snprintf_P(buf, bufSize, PSTR("%s/%s, Vcc: %d.%3dV, RSSI: %ddBm"), NODENAME, VERSION, vcc / 1000, vcc % 1000, rssi);
+              //aprs.sendStatus(buf);
+            }
+            else {
+              // Reset the delay to minimum
+              rpDelay = rpDelayMin;
+            }
             // Close the connection
             aprs.stop();
           }
           // Led OFF
           ledOff();
+
+          // Repeat the report after the delay
+          rpNextTime = now + rpDelay;
         }
       }
       else {

@@ -177,24 +177,26 @@ bool APRS::authenticate() {
     // Flush the welcome message
     aprsClient.flush();
     // Send the credentials
-    send(aprsPkt);
-    // Check the one-line response
-    result = aprsClient.findUntil("verified", "\r");
-    /*
-      int rlen = aprsClient.readBytesUntil('\n', aprsPkt, sizeof(aprsPkt));
-      aprsPkt[rlen] = '\0';
-      Serial.print("[APRS  <] "); Serial.print(aprsPkt);
-      // Tokenize the response
-      char* pch;
-      pch = strtok(aprsPkt, " ");
-      while (pch != NULL) {
-      if (strcmp(pch, "verified") == 0) {
-        result = true;
-        break;
-      }
-      pch = strtok(NULL, " ");
-      }
-    */
+    result = send(aprsPkt);
+    if (result) {
+      // Check the one-line response
+      result = aprsClient.findUntil("verified", "\r");
+      /*
+          int rlen = aprsClient.readBytesUntil('\n', aprsPkt, sizeof(aprsPkt));
+          aprsPkt[rlen] = '\0';
+          Serial.print("[APRS  <] "); Serial.print(aprsPkt);
+          // Tokenize the response
+          char* pch;
+          pch = strtok(aprsPkt, " ");
+          while (pch != NULL) {
+            if (strcmp(pch, "verified") == 0) {
+              result = true;
+              break;
+            }
+            pch = strtok(NULL, " ");
+          }
+      */
+    }
   }
   return result;
 }
@@ -213,7 +215,7 @@ void APRS::setSymbol(const char table, const char symbol) {
 
   @param message the status message to send
 */
-void APRS::sendStatus(const char *message) {
+bool APRS::sendStatus(const char *message) {
   // Send only if the message is not empty
   if (message[0] != '\0') {
     // Send the APRS packet
@@ -222,7 +224,7 @@ void APRS::sendStatus(const char *message) {
     strcat_P(aprsPkt, PSTR(">"));
     strcat  (aprsPkt, message);
     strcat_P(aprsPkt, eol);
-    send(aprsPkt);
+    return send(aprsPkt);
   }
 }
 
@@ -233,7 +235,7 @@ void APRS::sendStatus(const char *message) {
   @param title the message title, if not empty
   @param message the message body
 */
-void APRS::sendMessage(const char *dest, const char *title, const char *message) {
+bool APRS::sendMessage(const char *dest, const char *title, const char *message) {
   // The object's call sign has to be padded with spaces until 9 chars long
   const int padSize = 9;
   char padCallSign[padSize] = " ";
@@ -256,7 +258,7 @@ void APRS::sendMessage(const char *dest, const char *title, const char *message)
   // The body of the message, maximum size is 45, including the title
   strncat(aprsPkt, message, 40);
   strcat_P(aprsPkt, eol);
-  send(aprsPkt);
+  return send(aprsPkt);
 }
 
 /**
@@ -291,7 +293,7 @@ void APRS::setLocation(float lat, float lng) {
 
   @param comment the comment to append
 */
-void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const char *comment, const char *object) {
+bool APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const char *comment, const char *object) {
   // Local buffer
   const int bufSize = 20;
   char buf[bufSize] = "";
@@ -338,7 +340,7 @@ void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
     //if (PROBE) strcat_P(aprsPkt, PSTR(" [PROBE]"));
   }
   strcat_P(aprsPkt, eol);
-  send(aprsPkt);
+  return send(aprsPkt);
 }
 
 /**
@@ -347,8 +349,8 @@ void APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
 
   @param comment the comment to append
 */
-void APRS::sendObjectPosition(float lat, float lng, int cse, int spd, float alt, const char *comment) {
-  sendPosition(lat, lng, cse, spd, alt, comment, aprsObjectNm);
+bool APRS::sendObjectPosition(float lat, float lng, int cse, int spd, float alt, const char *comment) {
+  return sendPosition(lat, lng, cse, spd, alt, comment, aprsObjectNm);
 }
 
 /**
@@ -360,7 +362,7 @@ void APRS::sendObjectPosition(float lat, float lng, int cse, int spd, float alt,
   @param pres athmospheric pressure (QNH) in dPa
   @param srad solar radiation in W/m^2
 */
-void APRS::sendWeather(int temp, int hmdt, int pres, int srad) {
+bool APRS::sendWeather(int temp, int hmdt, int pres, int srad) {
   const int bufSize = 10;
   char buf[bufSize] = "";
   // Weather report
@@ -404,7 +406,7 @@ void APRS::sendWeather(int temp, int hmdt, int pres, int srad) {
   // Comment (device name)
   strcat_P(aprsPkt, DEVICEID);
   strcat_P(aprsPkt, eol);
-  send(aprsPkt);
+  return send(aprsPkt);
 }
 
 
@@ -419,7 +421,7 @@ void APRS::sendWeather(int temp, int hmdt, int pres, int srad) {
   @param luxIrd raw infrared illuminance
   @bits digital inputs
 */
-void APRS::sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits, const char *object) {
+bool APRS::sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits, const char *object) {
   // Increment the telemetry sequence number, reset it if exceeds 999
   if (++aprsTlmSeq > 999) aprsTlmSeq = 0;
   // Send the telemetry setup if the sequence number is 0
@@ -434,13 +436,14 @@ void APRS::sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits, cons
   itoa(bits, buf, 2);
   strncat(aprsPkt, buf, bufSize);
   strcat_P(aprsPkt, eol);
-  send(aprsPkt);
+  return send(aprsPkt);
 }
 
 /**
   Send APRS telemetry setup
 */
-void APRS::sendTelemetrySetup(const char *object) {
+bool APRS::sendTelemetrySetup(const char *object) {
+  bool result = true;
   // The object's call sign has to be padded with spaces until 9 chars long
   const int padSize = 9;
   char padCallSign[padSize] = " ";
@@ -466,19 +469,19 @@ void APRS::sendTelemetrySetup(const char *object) {
   // Parameter names
   strcat_P(aprsPkt, aprsTlmPARM);
   strcat_P(aprsPkt, eol);
-  send(aprsPkt);
+  result &= send(aprsPkt);
   // Trim the packet
   aprsPkt[lenHeader] = '\0';
   // Equations
   strcat_P(aprsPkt, aprsTlmEQNS);
   strcat_P(aprsPkt, eol);
-  send(aprsPkt);
+  result &= send(aprsPkt);
   // Trim the packet
   aprsPkt[lenHeader] = '\0';
   // Units
   strcat_P(aprsPkt, aprsTlmUNIT);
   strcat_P(aprsPkt, eol);
-  send(aprsPkt);
+  result &= send(aprsPkt);
   // Trim the packet
   aprsPkt[lenHeader] = '\0';
   // Bit sense and project name
@@ -487,6 +490,6 @@ void APRS::sendTelemetrySetup(const char *object) {
   strcat_P(aprsPkt, pstrSL);
   strcat(aprsPkt, VERSION);
   strcat_P(aprsPkt, eol);
-  send(aprsPkt);
+  result &= send(aprsPkt);
+  return result;
 }
-

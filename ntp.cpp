@@ -132,4 +132,3 @@ unsigned long NTP::uptime(char *buf, size_t len) {
   // Return the uptime in seconds
   return upt;
 }
-
