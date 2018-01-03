@@ -223,7 +223,7 @@ long MLS::getMovement() {
     float R = 6371000;
     // Equirectangular approximation
     float x = DEG_TO_RAD * (longitude - prevLongitude) * cos(DEG_TO_RAD * (latitude + prevLatitude) / 2);
-    float y = DEG_TO_RAD * (latitude - prevLatitude);
+    float y = DEG_TO_RAD * (latitude  - prevLatitude);
     // Compute the distance and speed
     distance = sqrt(x * x + y * y) * R;
     speed = 1000 * distance / (currTime - prevTime);
