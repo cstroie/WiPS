@@ -48,18 +48,23 @@ void APRS::stop() {
   Set the APRS callsign and compute the passcode
 */
 void APRS::setCallSign(const char *callsign) {
-  // Keep the callsign
-  strncpy(aprsCallSign, (char*)callsign, sizeof(aprsCallSign));
+  if (callsign == NULL) {
+    // Create an automatic callsign, using the ChipID
+    snprintf_P(aprsCallSign, sizeof(aprsCallSign), PSTR("TK%04X"), ESP.getChipId() & 0xFFFF);
+  }
+  else {
+    // Keep the callsign
+    strncpy(aprsCallSign, (char*)callsign, sizeof(aprsCallSign));
+  }
   // Compute the passcode
-  snprintf_P(aprsPassCode, sizeof(aprsPassCode), PSTR("%3d"), doPassCode((char*)callsign));
-  // Set the APRS object name
-  setObjectName();
+  snprintf_P(aprsPassCode, sizeof(aprsPassCode), PSTR("%3d"), doPassCode((char*)aprsCallSign));
 }
 
 /**
   Set your own passcode (not necessary)
 */
 void APRS::setPassCode(const char *passcode) {
+  // Keep the passcode
   strncpy(aprsPassCode, (char*)passcode, sizeof(aprsPassCode));
 }
 
@@ -94,10 +99,17 @@ int APRS::doPassCode(char *callsign) {
 }
 
 /**
-  Set the APRS object name as 'WAT' + chip ID
+  Set the APRS object name
 */
-void APRS::setObjectName() {
-  snprintf_P(aprsObjectNm, sizeof(aprsObjectNm), PSTR("WAT%06X"), ESP.getChipId());
+void APRS::setObjectName(const char *object) {
+  if (object == NULL) {
+    // Create an automatic object name, using the ChipID
+    snprintf_P(aprsObjectNm, sizeof(aprsObjectNm), PSTR("WAT%06X"), ESP.getChipId());
+  }
+  else {
+    // Keep the object name
+    strncpy(aprsObjectNm, (char*)object, sizeof(aprsObjectNm));
+  }
   // Pad with spaces
   for (int i = strlen(aprsObjectNm); i < sizeof(aprsObjectNm) - 1; i++)
     aprsObjectNm[i] = '_';
@@ -136,8 +148,8 @@ bool APRS::send() {
   @param len the buffer length
 */
 void APRS::time(char *buf, size_t len) {
-  // Get the time, but do not open a connection to server
-  unsigned long utm = ntp.timeUNIX(false);
+  // Get the ZULU time
+  unsigned long utm = ntp.timeUNIX();
   // Compute hour, minute and second
   int hh = (utm % 86400L) / 3600;
   int mm = (utm % 3600) / 60;
@@ -421,11 +433,11 @@ bool APRS::sendWeather(int temp, int hmdt, int pres, int srad) {
   @param luxIrd raw infrared illuminance
   @bits digital inputs
 */
-bool APRS::sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits, const char *object) {
+bool APRS::sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits) {
   // Increment the telemetry sequence number, reset it if exceeds 999
   if (++aprsTlmSeq > 999) aprsTlmSeq = 0;
   // Send the telemetry setup if the sequence number is 0
-  if (aprsTlmSeq == 0) sendTelemetrySetup(object);
+  if (aprsTlmSeq == 0) sendTelemetrySetup();
   // Compose the APRS packet
   const int bufSize = 40;
   char buf[bufSize] = "";
@@ -442,16 +454,13 @@ bool APRS::sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits, cons
 /**
   Send APRS telemetry setup
 */
-bool APRS::sendTelemetrySetup(const char *object) {
+bool APRS::sendTelemetrySetup() {
   bool result = true;
   // The object's call sign has to be padded with spaces until 9 chars long
   const int padSize = 9;
   char padCallSign[padSize] = " ";
   // Copy the call sign or object name
-  if (object != NULL)
-    strcpy(padCallSign, object);
-  else
-    strcpy_P(padCallSign, aprsCallSign);
+  strcpy_P(padCallSign, aprsCallSign);
   // Pad with spaces, then make sure it ends with '\0'
   for (int i = strlen(padCallSign); i < padSize; i++)
     padCallSign[i] = ' ';

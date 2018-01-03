@@ -43,10 +43,10 @@ class APRS {
     bool connect(const char *server, int port);
     bool connect();
     void stop();
-    void setCallSign(const char *callsign);
+    void setCallSign(const char *callsign = NULL);
     void setPassCode(const char *passcode);
     int  doPassCode(char *callsign);
-    void setObjectName();
+    void setObjectName(const char *callsign = NULL);
     bool send(const char *pkt);
     bool send();
     void time(char *buf, size_t len);
@@ -61,12 +61,13 @@ class APRS {
     bool sendPosition(float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL, const char *object = NULL);
     bool sendObjectPosition(float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL);
     bool sendWeather(int temp, int hmdt, int pres, int srad);
-    bool sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits, const char *object = NULL);
-    bool sendTelemetrySetup(const char *object = NULL);
+    bool sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits);
+    bool sendTelemetrySetup();
     char aprsCallSign[10];
     char aprsPassCode[10];
     char aprsObjectNm[10];
-    char aprsTlmBits = B00000000;     // Telemetry bits
+    char aprsTlmBits        = B00000000;  // Telemetry bits
+    int  aprsTlmSeq         = 999;        // Telemetry sequence mumber
 
   private:
     WiFiClient aprsClient;
@@ -77,7 +78,6 @@ class APRS {
     char  aprsLocation[20];
     char  aprsTable;
     char  aprsSymbol;
-    int   aprsTlmSeq        = 999;    // Telemetry sequence mumber
     char  DEVICEID[6];                // t_hing A_rduino E_SP8266 W_iFi 4_
 };
 
