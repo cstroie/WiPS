@@ -28,7 +28,6 @@ int otaPort           = 8266;
 
 // Mozilla Location Services
 #include "mls.h"
-MLS mls;
 
 // Network Time Protocol
 #include "ntp.h"
@@ -50,9 +49,6 @@ unsigned long rpDelayStep = 30;   // Step to increase the delay between reportin
 unsigned long rpDelayMin  = 30;   // Minimum delay between reporting
 unsigned long rpDelayMax  = 1800; // Maximum delay between reporting
 
-// Telemetry bits
-char          aprsTlmBits = B00000000;
-
 // Smoothen accuracy
 int sacc;
 
@@ -68,6 +64,7 @@ char charIP(const IPAddress ip, char *buf, size_t len, boolean pad = false) {
   Display the WiFi parameters
 */
 void showWiFi() {
+  Serial.println();
   if (WiFi.isConnected()) {
     char ipbuf[16] = "";
     char gwbuf[16] = "";
@@ -79,24 +76,15 @@ void showWiFi() {
     charIP(WiFi.dnsIP(),     nsbuf, sizeof(nsbuf), true);
 
     // Print
-    Serial.println();
-    Serial.print(F("WiFi connected to "));
-    Serial.print(WiFi.SSID());
-    Serial.print(F(" on channel "));
-    Serial.print(WiFi.channel());
-    Serial.print(F(", RSSI "));
-    Serial.print(WiFi.RSSI());
-    Serial.println(F(" dBm."));
-    Serial.print(F(" IP : "));
-    Serial.println(ipbuf);
-    Serial.print(F(" GW : "));
-    Serial.println(gwbuf);
-    Serial.print(F(" DNS: "));
-    Serial.println(nsbuf);
+    Serial.print(F("WiFi connected to ")); Serial.print(WiFi.SSID());
+    Serial.print(F(" on channel "));       Serial.print(WiFi.channel());
+    Serial.print(F(", RSSI "));            Serial.print(WiFi.RSSI());    Serial.println(F(" dBm."));
+    Serial.print(F(" IP : "));             Serial.println(ipbuf);
+    Serial.print(F(" GW : "));             Serial.println(gwbuf);
+    Serial.print(F(" DNS: "));             Serial.println(nsbuf);
     Serial.println();
   }
   else {
-    Serial.println();
     Serial.print(F("WiFi not connected"));
   }
 }
@@ -129,6 +117,8 @@ void wifiCallback(WiFiManager *wifiMgr) {
 void wifiConnect() {
   // Set the host name
   WiFi.hostname(NODENAME);
+  // Store credentials only if changed
+  WiFi.persistent(false);
   // Led ON
   ledOn();
   // Try to connect to WiFi
@@ -218,10 +208,23 @@ void setup() {
   // Configure APRS
   aprs.init(APRS_SERVER, APRS_PORT);
   aprs.setNTP(ntp);
-  aprs.setCallSign(APRS_CALLSIGN);
+  // Use an automatic callsign
+  aprs.setCallSign();
   Serial.print(F("APRS callsign: ")); Serial.print(aprs.aprsCallSign);
   Serial.print(F(", passcode: ")); Serial.print(aprs.aprsPassCode);
-  Serial.print(F(", object: ")); Serial.println(aprs.aprsObjectNm);
+  //Serial.print(F(", object: ")); Serial.print(aprs.aprsObjectNm);
+  Serial.println();
+
+  // Hardware data
+  int hwVcc  = ESP.getVcc();
+  Serial.print(F("Vcc : "));
+  Serial.println((float)hwVcc / 1000, 3);
+
+  // Initialize the random number generator and set the APRS telemetry start sequence
+  randomSeed(ntp.timeUNIX(false) + hwVcc + millis());
+  aprs.aprsTlmSeq = random(1000);
+  Serial.print(F("TLM : "));
+  Serial.println(aprs.aprsTlmSeq);
 }
 
 /**
@@ -237,15 +240,12 @@ void loop() {
 
   // Check if we should geolocate
   if (now >= geoNextTime) {
-    // Repeat the geolocation after a delay
-    geoNextTime = now + geoDelay;
-
     // Make sure we are connected
     if (!WiFi.isConnected()) wifiConnect();
 
     // Set the telemetry bit 7 if the tracker is being probed
-    if (PROBE) aprsTlmBits = B10000000;
-    else       aprsTlmBits = B00000000;
+    if (PROBE) aprs.aprsTlmBits = B10000000;
+    else       aprs.aprsTlmBits = B00000000;
 
     // Log the APRS time
     char aprsTime[10] = "";
@@ -253,50 +253,45 @@ void loop() {
     Serial.print("["); Serial.print(aprsTime); Serial.print("] ");
 
     // Check the time and set the telemetry bit 0 if time is not accurate
-    if (!ntp.ntpOk) aprsTlmBits |= B00000001;
+    if (!ntp.ntpOk) aprs.aprsTlmBits |= B00000001;
     // Set the telemetry bit 1 if the uptime is less than one day (recent reboot)
-    if (millis() < 86400000UL) aprsTlmBits |= B00000010;
+    if (millis() < 86400000UL) aprs.aprsTlmBits |= B00000010;
 
+    // Create the MLS object
+    MLS mls;
     // Scan the WiFi access points
     Serial.print(F("WiFi networks... "));
     int found = mls.wifiScan(false);
-    Serial.print(found);
-    Serial.print(" found, ");
+    Serial.print(found); Serial.print(" found, ");
 
     // Get the coordinates
     if (found > 0) {
       Serial.print(F("geolocating... "));
       int acc = mls.geoLocation();
       // Exponential smoothing the accuracy
-      if (sacc < 0)
-        sacc = acc;
-      else
-        sacc = (((sacc << 2) - sacc + acc) + 2) >> 2;
+      if (sacc < 0) sacc = acc;
+      else          sacc = (((sacc << 2) - sacc + acc) + 2) >> 2;
 
       if (mls.validCoords) {
-        // Local buffer
-        const int bufSize = 200;
-        char buf[bufSize] = "";
-
         Serial.print(mls.latitude, 6); Serial.print(","); Serial.print(mls.longitude, 6);
-        Serial.print(F(" acc ")); Serial.print(acc); Serial.println("m.");
+        Serial.print(F(" acc "));      Serial.print(acc); Serial.println("m.");
 
         bool moving = mls.getMovement() >= (sacc / 3);
         if (moving) {
           Serial.print(F("          "));
           Serial.print(F("Dst: ")); Serial.print(mls.distance, 2); Serial.print("m  ");
-          Serial.print(F("Spd: ")); Serial.print(mls.speed, 2); Serial.print("m/s  ");
+          Serial.print(F("Spd: ")); Serial.print(mls.speed, 2);    Serial.print("m/s  ");
           Serial.print(F("Crs: ")); Serial.print(mls.bearing);
           Serial.println();
         }
 
-        // Read the Vcc (mV) and add to the round median filter
+        // Read the Vcc (mV)
         int vcc  = ESP.getVcc();
         // Set the bit 3 to show whether the battery is wrong (3.3V +/- 10%)
-        if (vcc < 3000 or vcc > 3600) aprsTlmBits |= B00001000;
+        if (vcc < 3000 or vcc > 3600) aprs.aprsTlmBits |= B00001000;
         // Get RSSI
         int rssi = WiFi.RSSI();
-        // Free Heap
+        // Get free heap
         int heap = ESP.getFreeHeap();
 
         // APRS if moving or time expired
@@ -308,14 +303,14 @@ void loop() {
           if (aprs.connect()) {
             // Authenticate
             if (aprs.authenticate()) {
+              // Local buffer, max comment length is 43 bytes
+              char buf[45] = "";
               // Prepare the comment
-              int dst = 100 * mls.distance;
-              //snprintf_P(buf, bufSize, PSTR("Acc: %dm, Dst: %d.%dm, Spd: %dkm/h, Vcc: %d.%1dV, RSSI: %ddBm"), acc, dst / 100, dst % 100, (int)(3.6 * mls.speed), vcc / 1000, vcc % 1000, rssi);
-              snprintf_P(buf, bufSize, PSTR("Acc: %dm, Dst: %d.%dm, Spd: %dkm/h"), acc, dst / 100, dst % 100, (int)(3.6 * mls.speed));
-              // Report course and speed if the geolocation accuracy better than moving distance
+              snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Vcc:%d.%d RSSI:%d"), acc, (int)(mls.distance), (int)(3.6 * mls.speed), vcc / 1000, (vcc % 1000) / 100, rssi);
+              // Report course and speed if the geolocation accuracy is better than moving distance
               if (moving) {
                 // Report
-                aprs.sendObjectPosition(mls.latitude, mls.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, buf);
+                aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, buf);
                 // Reset the delay to minimum
                 rpDelay = rpDelayMin;
                 // Set the telemetry bits 4 and 5 if moving, according to the speed
@@ -324,13 +319,13 @@ void loop() {
               }
               else {
                 // Report
-                aprs.sendObjectPosition(mls.latitude, mls.longitude, mls.bearing, 0, -1, buf);
+                aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, 0, -1, buf);
                 // Not moving, increase the delay to a maximum
                 rpDelay += rpDelayStep;
                 if (rpDelay > rpDelayMax) rpDelay = rpDelayMax;
               }
               // Send the telemetry
-              //aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed / 0.0008)), aprs.aprsTlmBits, aprs.aprsObjectNm);
+              aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed / 0.0008)), aprs.aprsTlmBits);
               // Send the status
               //snprintf_P(buf, sizeof(buf), PSTR("%s/%s, Vcc: %d.%3dV, RSSI: %ddBm"), NODENAME, VERSION, vcc / 1000, vcc % 1000, rssi);
               //aprs.sendStatus(buf);
@@ -355,6 +350,8 @@ void loop() {
         Serial.println("m.");
       }
     }
+    // Repeat the geolocation after a delay
+    geoNextTime = now + geoDelay;
   };
 }
-
+// vim: set ft=arduino ai ts=2 sts=2 et sw=2 sta nowrap nu :
