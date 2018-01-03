@@ -319,8 +319,8 @@ void loop() {
                 // Reset the delay to minimum
                 rpDelay = rpDelayMin;
                 // Set the telemetry bits 4 and 5 if moving, according to the speed
-                if (mls.speed > 10) aprsTlmBits |= B00100000;
-                else                aprsTlmBits |= B00010000;
+                if (mls.speed > 10) aprs.aprsTlmBits |= B00100000;
+                else                aprs.aprsTlmBits |= B00010000;
               }
               else {
                 // Report
@@ -330,9 +330,9 @@ void loop() {
                 if (rpDelay > rpDelayMax) rpDelay = rpDelayMax;
               }
               // Send the telemetry
-              //aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed / 0.0008)), aprsTlmBits, aprs.aprsObjectNm);
+              //aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed / 0.0008)), aprs.aprsTlmBits, aprs.aprsObjectNm);
               // Send the status
-              //snprintf_P(buf, bufSize, PSTR("%s/%s, Vcc: %d.%3dV, RSSI: %ddBm"), NODENAME, VERSION, vcc / 1000, vcc % 1000, rssi);
+              //snprintf_P(buf, sizeof(buf), PSTR("%s/%s, Vcc: %d.%3dV, RSSI: %ddBm"), NODENAME, VERSION, vcc / 1000, vcc % 1000, rssi);
               //aprs.sendStatus(buf);
             }
             else {
