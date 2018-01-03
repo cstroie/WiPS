@@ -66,10 +66,12 @@ class APRS {
     char aprsCallSign[10];
     char aprsPassCode[10];
     char aprsObjectNm[10];
+    char aprsTlmBits = B00000000;     // Telemetry bits
+
   private:
-    NTP  ntp;
     WiFiClient aprsClient;
-    char  aprsPkt[100];
+    NTP   ntp;
+    char  aprsPkt[250];
     char  aprsServer[50];             // CWOP APRS-IS server address to connect to
     int   aprsPort;                   // CWOP APRS-IS port
     char  aprsLocation[20];
