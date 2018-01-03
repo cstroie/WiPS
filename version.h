@@ -14,6 +14,6 @@
 // Device specific constants
 const char NODENAME[] = "WiFiTrk";
 const char nodename[] = "wifitrk";
-const char VERSION[]  = "0.2.5";
+const char VERSION[]  = "0.2.6";
 
 #endif /* VERSION_H */
