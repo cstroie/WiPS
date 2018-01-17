@@ -11,6 +11,9 @@
 
 #define DEBUG
 
+// Define a safe ABS
+#define ABS(x) ((x)>0?(x):-(x))
+
 #define PORT  14580
 
 #include "Arduino.h"

@@ -262,11 +262,10 @@ void loop() {
     // Scan the WiFi access points
     Serial.print(F("WiFi networks... "));
     int found = mls.wifiScan(false);
-    Serial.print(found); Serial.print(" found, ");
 
     // Get the coordinates
     if (found > 0) {
-      Serial.print(F("geolocating... "));
+      Serial.print(found); Serial.print(F(" found, geolocating... "));
       int acc = mls.geoLocation();
       // Exponential smoothing the accuracy
       if (sacc < 0) sacc = acc;
@@ -276,7 +275,8 @@ void loop() {
         Serial.print(mls.latitude, 6); Serial.print(","); Serial.print(mls.longitude, 6);
         Serial.print(F(" acc "));      Serial.print(acc); Serial.println("m.");
 
-        bool moving = mls.getMovement() >= (sacc / 3);
+        // Check if moving
+        bool moving = mls.getMovement() >= (sacc >> 2);
         if (moving) {
           Serial.print(F("          "));
           Serial.print(F("Dst: ")); Serial.print(mls.distance, 2); Serial.print("m  ");
@@ -350,6 +350,9 @@ void loop() {
         Serial.println("m.");
       }
     }
+    else
+      // No WiFi networks
+      Serial.println(F("none."));
     // Repeat the geolocation after a delay
     geoNextTime = now + geoDelay;
   };
