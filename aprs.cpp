@@ -149,7 +149,7 @@ bool APRS::send() {
 */
 void APRS::time(char *buf, size_t len) {
   // Get the ZULU time
-  unsigned long utm = ntp.timeUNIX();
+  unsigned long utm = ntp.getSeconds();
   // Compute hour, minute and second
   int hh = (utm % 86400L) / 3600;
   int mm = (utm % 3600) / 60;
