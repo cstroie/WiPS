@@ -113,7 +113,7 @@ void wifiConnect() {
   // Set the host name
   WiFi.hostname(NODENAME);
   // Store credentials only if changed
-  WiFi.persistent(false);
+  //WiFi.persistent(false);
   // Led ON
   setLED(10);
   // Try to connect to WiFi
