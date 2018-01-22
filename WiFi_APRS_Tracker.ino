@@ -104,6 +104,7 @@ void setLED(int load) {
 void wifiCallback(WiFiManager *wifiMgr) {
   Serial.print(F("Connect to "));
   Serial.println(wifiMgr->getConfigPortalSSID());
+  setLED(10);
 }
 
 /**
@@ -126,11 +127,14 @@ void wifiConnect() {
   };
   Serial.println(F(" done."));
 #else
+  setLED(4);
   WiFiManager wifiManager;
   wifiManager.setTimeout(300);
   wifiManager.setAPCallback(wifiCallback);
-  while (!wifiManager.autoConnect(NODENAME))
+  while (!wifiManager.autoConnect(NODENAME)) {
+    setLED(2);
     delay(1000);
+  }
 #endif
   // Led OFF
   setLED(0);
