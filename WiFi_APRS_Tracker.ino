@@ -90,17 +90,11 @@ void showWiFi() {
 }
 
 /**
-  Turn the built-in led off
+  Turn the built-in led on, analog
 */
-void ledOff() {
-  digitalWrite(LED_BUILTIN, HIGH);
-}
-
-/**
-  Turn the built-in led on
-*/
-void ledOn() {
-  digitalWrite(LED_BUILTIN, LOW);
+void setLED(int load) {
+  int level = (1 << load) - 1;
+  analogWrite(LED_BUILTIN, PWMRANGE - level);
 }
 
 /**
@@ -120,7 +114,7 @@ void wifiConnect() {
   // Store credentials only if changed
   WiFi.persistent(false);
   // Led ON
-  ledOn();
+  setLED(10);
   // Try to connect to WiFi
 #ifdef WIFI_SSID
   Serial.print("WiFi connecting ");
@@ -138,7 +132,7 @@ void wifiConnect() {
     delay(1000);
 #endif
   // Led OFF
-  ledOff();
+  setLED(0);
 }
 
 /**
@@ -156,6 +150,7 @@ void setup() {
 
   // Initialize the LED_BUILTIN pin as an output
   pinMode(LED_BUILTIN, OUTPUT);
+  setLED(0);
 
   // Try to connect
   wifiConnect();
@@ -257,6 +252,9 @@ void loop() {
     // Set the telemetry bit 1 if the uptime is less than one day (recent reboot)
     if (millis() < 86400000UL) aprs.aprsTlmBits |= B00000010;
 
+    // Led on
+    setLED(7);
+
     // Create the MLS object
     MLS mls;
     // Scan the WiFi access points
@@ -265,8 +263,13 @@ void loop() {
 
     // Get the coordinates
     if (found > 0) {
+      // Led on
+      setLED(8);
       Serial.print(found); Serial.print(F(" found, geolocating... "));
       int acc = mls.geoLocation();
+      // Led off
+      setLED(7);
+
       // Exponential smoothing the accuracy
       if (sacc < 0) sacc = acc;
       else          sacc = (((sacc << 2) - sacc + acc) + 2) >> 2;
@@ -297,7 +300,7 @@ void loop() {
         // APRS if moving or time expired
         if ((moving or (now >= rpNextTime)) and acc >= 0) {
           // Led ON
-          ledOn();
+          setLED(9);
 
           // Connect to the server
           if (aprs.connect()) {
@@ -338,7 +341,7 @@ void loop() {
             aprs.stop();
           }
           // Led OFF
-          ledOff();
+          setLED(0);
 
           // Repeat the report after the delay
           rpNextTime = now + rpDelay;
@@ -350,9 +353,14 @@ void loop() {
         Serial.println("m.");
       }
     }
-    else
+    else {
       // No WiFi networks
       Serial.println(F("none."));
+    }
+
+    // Led off
+    setLED(0);
+
     // Repeat the geolocation after a delay
     geoNextTime = now + geoDelay;
   };
