@@ -254,7 +254,7 @@ void loop() {
     if (millis() < 86400000UL) aprs.aprsTlmBits |= B00000010;
 
     // Led on
-    setLED(7);
+    setLED(4);
 
     // Scan the WiFi access points
     Serial.print(F("WiFi networks... "));
@@ -263,11 +263,11 @@ void loop() {
     // Get the coordinates
     if (found > 0) {
       // Led on
-      setLED(8);
+      setLED(6);
       Serial.print(found); Serial.print(F(" found, geolocating... "));
       int acc = mls.geoLocation();
       // Led off
-      setLED(7);
+      setLED(4);
 
       // Exponential smoothing the accuracy
       if (sacc < 0) sacc = acc;
@@ -299,7 +299,7 @@ void loop() {
         // APRS if moving or time expired
         if ((moving or (now >= rpNextTime)) and acc >= 0) {
           // Led ON
-          setLED(9);
+          setLED(8);
 
           // Connect to the server
           if (aprs.connect()) {
