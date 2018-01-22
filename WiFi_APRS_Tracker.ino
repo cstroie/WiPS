@@ -28,6 +28,7 @@ int otaPort           = 8266;
 
 // Mozilla Location Services
 #include "mls.h"
+MLS mls;
 
 // Network Time Protocol
 #include "ntp.h"
@@ -216,7 +217,7 @@ void setup() {
   Serial.println((float)hwVcc / 1000, 3);
 
   // Initialize the random number generator and set the APRS telemetry start sequence
-  randomSeed(ntp.timeUNIX(false) + hwVcc + millis());
+  randomSeed(ntp.getSeconds(false) + hwVcc + millis());
   aprs.aprsTlmSeq = random(1000);
   Serial.print(F("TLM : "));
   Serial.println(aprs.aprsTlmSeq);
@@ -248,15 +249,13 @@ void loop() {
     Serial.print("["); Serial.print(aprsTime); Serial.print("] ");
 
     // Check the time and set the telemetry bit 0 if time is not accurate
-    if (!ntp.ntpOk) aprs.aprsTlmBits |= B00000001;
+    if (!ntp.valid) aprs.aprsTlmBits |= B00000001;
     // Set the telemetry bit 1 if the uptime is less than one day (recent reboot)
     if (millis() < 86400000UL) aprs.aprsTlmBits |= B00000010;
 
     // Led on
     setLED(7);
 
-    // Create the MLS object
-    MLS mls;
     // Scan the WiFi access points
     Serial.print(F("WiFi networks... "));
     int found = mls.wifiScan(false);
@@ -274,8 +273,8 @@ void loop() {
       if (sacc < 0) sacc = acc;
       else          sacc = (((sacc << 2) - sacc + acc) + 2) >> 2;
 
-      if (mls.validCoords) {
-        Serial.print(mls.latitude, 6); Serial.print(","); Serial.print(mls.longitude, 6);
+      if (mls.current.valid) {
+        Serial.print(mls.current.latitude, 6); Serial.print(","); Serial.print(mls.current.longitude, 6);
         Serial.print(F(" acc "));      Serial.print(acc); Serial.println("m.");
 
         // Check if moving
@@ -313,7 +312,7 @@ void loop() {
               // Report course and speed if the geolocation accuracy is better than moving distance
               if (moving) {
                 // Report
-                aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, buf);
+                aprs.sendPosition(mls.current.latitude, mls.current.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, buf);
                 // Reset the delay to minimum
                 rpDelay = rpDelayMin;
                 // Set the telemetry bits 4 and 5 if moving, according to the speed
@@ -322,7 +321,7 @@ void loop() {
               }
               else {
                 // Report
-                aprs.sendPosition(mls.latitude, mls.longitude, mls.bearing, 0, -1, buf);
+                aprs.sendPosition(mls.current.latitude, mls.current.longitude, mls.bearing, 0, -1, buf);
                 // Not moving, increase the delay to a maximum
                 rpDelay += rpDelayStep;
                 if (rpDelay > rpDelayMax) rpDelay = rpDelayMax;
