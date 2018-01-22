@@ -21,6 +21,12 @@ const int  geoPort            = 443;
 const char geoPOST[] PROGMEM  = "POST /v1/geolocate?key=" GEO_APIKEY " HTTP/1.1";
 const char eol[]     PROGMEM  = "\r\n";
 
+struct geo_t {
+  float         latitude;
+  float         longitude;
+  bool          valid;
+  unsigned long uptm;
+};
 
 class MLS {
   public:
@@ -29,23 +35,17 @@ class MLS {
     int   wifiScan(bool sort = false);
     int   geoLocation();
     long  getMovement();
-    float latitude;
-    float longitude;
+    geo_t current;
+    geo_t previous;
     float distance;
     float speed;
     int   bearing;
-    bool  validCoords     = false;
-    bool  validPrevCoords = false;
   private:
     struct  BSSID_RSSI {
       uint8_t bssid[6];
       int8_t  rssi;
     } nets[MAXNETS];
     int           netCount;
-    float         prevLatitude;
-    float         prevLongitude;
-    unsigned long prevTime;
-    unsigned long currTime;
 };
 
 #endif /* MLS_H */

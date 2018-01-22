@@ -69,14 +69,15 @@ int MLS::wifiScan(bool sort) {
   @return the geolocation accuracy
 */
 int MLS::geoLocation() {
-  int acc = -1;
+  int   acc = -1;
   float lat = 0.0;
   float lng = 0.0;
 
-  /* WiFi client */
+  // Create the secure WiFi
   WiFiClientSecure geoClient;
   geoClient.setTimeout(5000);
 
+  // Try to connect
   if (geoClient.connect(geoServer, geoPort)) {
     // Local buffer
     const int bufSize = 250;
@@ -84,7 +85,7 @@ int MLS::geoLocation() {
     // Keep the internal time
     unsigned long now = millis();
 
-    /* Geolocation request header */
+    // The geolocation request header
     strcpy_P(buf, geoPOST);
     strcat_P(buf, eol);
     geoClient.print(buf);
@@ -127,7 +128,7 @@ int MLS::geoLocation() {
     //Serial.print(buf);
     yield();
 
-    /* Geolocation request payload */
+    // The geolocation request payload
     // First line in json
     strcpy_P(buf, PSTR("{\"wifiAccessPoints\": [\n"));
     geoClient.print(buf);
@@ -162,7 +163,7 @@ int MLS::geoLocation() {
     geoClient.print(buf);
     //Serial.print(buf);
 
-    /* Get the geolocation response */
+    // Get the geolocation response
     //Serial.println();
     while (geoClient.connected()) {
       int rlen = geoClient.readBytesUntil('\r', buf, bufSize);
@@ -171,7 +172,7 @@ int MLS::geoLocation() {
       if (rlen == 1) break;
     }
 
-    /* Parse the result */
+    // Parse the result
     while (geoClient.connected()) {
       int rlen = geoClient.readBytesUntil(':', buf, bufSize);
       buf[rlen] = '\0';
@@ -181,31 +182,33 @@ int MLS::geoLocation() {
     }
     //Serial.println();
 
-    /* Close the connection */
+    // Close the connection
     geoClient.stop();
 
-    /* Check if previous valid coordinates are too old (over one hour) and invalidate them */
-    if (now - prevTime > 3600000UL) validPrevCoords = false;
+    // Check if previous valid coordinates are too old (over one hour) and invalidate them
+    if (now - previous.uptm > 3600000UL) previous.valid = false;
 
-    /* Check the data */
+    // Check the data
     if (acc >= 0 and acc <= GEO_MAXACC) {
-      if (validCoords) {
-        /* Store old data */
-        validPrevCoords = validCoords;
-        prevLatitude    = latitude;
-        prevLongitude   = longitude;
-        prevTime        = currTime;
+      if (current.valid) {
+        // Store previous coordinates
+        previous.valid      = current.valid;
+        previous.latitude   = current.latitude;
+        previous.longitude  = current.longitude;
+        previous.uptm       = current.uptm;
       }
-      /* Store new data */
-      validCoords     = true;
-      latitude        = lat;
-      longitude       = lng;
-      currTime        = now;
+      // Store new coordinates
+      current.valid     = true;
+      current.latitude  = lat;
+      current.longitude = lng;
+      current.uptm      = now;
     }
     else {
-      validCoords     = false;
+      // No current valid coordinates
+      current.valid     = false;
     }
   }
+
   // Return the geolocation accuracy
   return acc;
 }
@@ -218,24 +221,26 @@ int MLS::geoLocation() {
 // var d = Math.acos( Math.sin(φ1)*Math.sin(φ2) + Math.cos(φ1)*Math.cos(φ2) * Math.cos(Δλ) ) * R;
 long MLS::getMovement() {
   // Check if the geolocation seems valid
-  if (validCoords and validPrevCoords) {
+  if (current.valid and previous.valid) {
     // Earth radius in meters
     float R = 6371000;
     // Equirectangular approximation
-    float x = DEG_TO_RAD * (longitude - prevLongitude) * cos(DEG_TO_RAD * (latitude + prevLatitude) / 2);
-    float y = DEG_TO_RAD * (latitude  - prevLatitude);
+    float x = DEG_TO_RAD * (current.longitude - previous.longitude) * cos(DEG_TO_RAD * (current.latitude + previous.latitude) / 2);
+    float y = DEG_TO_RAD * (current.latitude  - previous.latitude);
+    Serial.println(x, 6);
+    Serial.println(y, 6);
     // Compute the distance and speed
     distance = sqrt(x * x + y * y) * R;
-    speed = 1000 * distance / (currTime - prevTime);
+    speed = 1000 * distance / (current.uptm - previous.uptm);
     // Get the bearing
-    float crs = RAD_TO_DEG * atan2(sin(longitude - prevLongitude) * cos(latitude),
-                                   cos(prevLatitude) * sin(latitude) - sin(prevLatitude) * cos(latitude) * cos(longitude - prevLongitude));
+    float crs = RAD_TO_DEG * atan2(sin(current.longitude - previous.longitude) * cos(current.latitude),
+                                   cos(previous.latitude) * sin(current.latitude) - sin(previous.latitude) * cos(current.latitude) * cos(current.longitude - previous.longitude));
     bearing = (int)(crs + 360) % 360;
   }
   else {
-    // Store an invalid distance and zero speed
-    distance = 0;
-    speed = 0;
+    // Invalid coordinates, store zero distance and speed
+    distance  = 0;
+    speed     = 0;
   }
   // Return the distance
   return (long)distance;
