@@ -227,8 +227,6 @@ long MLS::getMovement() {
     // Equirectangular approximation
     float x = DEG_TO_RAD * (current.longitude - previous.longitude) * cos(DEG_TO_RAD * (current.latitude + previous.latitude) / 2);
     float y = DEG_TO_RAD * (current.latitude  - previous.latitude);
-    Serial.println(x, 6);
-    Serial.println(y, 6);
     // Compute the distance and speed
     distance = sqrt(x * x + y * y) * R;
     speed = 1000 * distance / (current.uptm - previous.uptm);
