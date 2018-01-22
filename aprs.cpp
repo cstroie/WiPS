@@ -278,10 +278,10 @@ bool APRS::sendMessage(const char *dest, const char *title, const char *message)
 */
 void APRS::coordinates(char *buf, float lat, float lng) {
   // Compute integer and fractional coordinates
-  int latDD = ABS((int)lat);
-  int latMM = (int)((ABS(lat) - latDD) * 6000);
-  int lngDD = ABS((int)lng);
-  int lngMM = (int)((ABS(lng) - lngDD) * 6000);
+  int latDD = (int)(abs(lat));
+  int latMM = (int)((fabs(lat) - latDD) * 6000);
+  int lngDD = (int)(abs(lng));
+  int lngMM = (int)((fabs(lng) - lngDD) * 6000);
   // Return the formatted coordinates
   sprintf_P(buf, PSTR("%02d%02d.%02d%c%c%03d%02d.%02d%c%c"),
             latDD, latMM / 100, latMM % 100, lat >= 0 ? 'N' : 'S', aprsTable,
