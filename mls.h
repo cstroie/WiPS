@@ -1,7 +1,7 @@
 /**
   mls.h - Mozilla Location Services
 
-  Copyright (c) 2017 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
 
   This file is part of WiFi_APRS_Tracker.
 */
@@ -39,6 +39,7 @@ class MLS {
     geo_t previous;
     float distance;
     float speed;
+    int   knots;
     int   bearing;
   private:
     struct  BSSID_RSSI {

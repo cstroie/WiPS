@@ -1,7 +1,7 @@
 /**
   mls.cpp - Mozilla Location Services
 
-  Copyright (c) 2017 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
 
   This file is part of WiFi_APRS_Tracker.
 */
@@ -230,15 +230,19 @@ long MLS::getMovement() {
     // Compute the distance and speed
     distance = sqrt(x * x + y * y) * R;
     speed = 1000 * distance / (current.uptm - previous.uptm);
-    // Get the bearing
-    float crs = RAD_TO_DEG * atan2(sin(current.longitude - previous.longitude) * cos(current.latitude),
-                                   cos(previous.latitude) * sin(current.latitude) - sin(previous.latitude) * cos(current.latitude) * cos(current.longitude - previous.longitude));
-    bearing = (int)(crs + 360) % 360;
+    knots = lround(speed * 1.94384449);
+    // If moving, get the bearing
+    if (knots > 0) {
+      float course = RAD_TO_DEG * atan2(sin(current.longitude - previous.longitude) * cos(current.latitude),
+                                        cos(previous.latitude) * sin(current.latitude) - sin(previous.latitude) * cos(current.latitude) * cos(current.longitude - previous.longitude));
+      bearing = (int)(course + 360) % 360;
+    }
   }
   else {
     // Invalid coordinates, store zero distance and speed
     distance  = 0;
     speed     = 0;
+    knots     = 0;
   }
   // Return the distance
   return (long)distance;
