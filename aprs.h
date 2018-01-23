@@ -1,7 +1,7 @@
 /**
   aprs.h - Automated Position Reporting System
 
-  Copyright (c) 2017 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
 
   This file is part of WiFi_APRS_Tracker.
 */
@@ -68,6 +68,7 @@ class APRS {
     char aprsObjectNm[10];
     char aprsTlmBits        = B00000000;  // Telemetry bits
     int  aprsTlmSeq         = 999;        // Telemetry sequence mumber
+    bool error;
 
   private:
     WiFiClient aprsClient;

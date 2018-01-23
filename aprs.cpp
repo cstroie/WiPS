@@ -1,7 +1,7 @@
 /**
   aprs.cpp - Automated Position Reporting System
 
-  Copyright (c) 2017 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
 
   This file is part of WiFi_APRS_Tracker.
 */
@@ -37,7 +37,9 @@ bool APRS::connect(const char *server, int port) {
 }
 
 bool APRS::connect() {
-  return aprsClient.connect(aprsServer, aprsPort);
+  bool result = aprsClient.connect(aprsServer, aprsPort);
+  if (!result) error = true;
+  return result;
 }
 
 void APRS::stop() {
@@ -125,16 +127,19 @@ void APRS::setObjectName(const char *object) {
 bool APRS::send(const char *pkt) {
   bool result;
   if (result = aprsClient.connected()) {
+    int plen = strlen(pkt);
 #ifndef DEVEL
-    aprsClient.print(pkt);
+    // Write the packet and check the number of bytes written
+    if (aprsClient.write(pkt) != plen) error = true;
     yield();
 #endif
 #ifdef DEBUG
-    Serial.print(F("[APRS  >] "));
-    Serial.print(pkt);
+    Serial.printf("[APRS %3d>] ", plen); Serial.print(pkt);
 #endif
   }
-  return result;
+  else
+    error = true;
+  return result & (~error);
 }
 
 bool APRS::send() {
@@ -194,19 +199,19 @@ bool APRS::authenticate() {
       // Check the one-line response
       result = aprsClient.findUntil("verified", "\r");
       /*
-          int rlen = aprsClient.readBytesUntil('\n', aprsPkt, sizeof(aprsPkt));
-          aprsPkt[rlen] = '\0';
-          Serial.print("[APRS  <] "); Serial.print(aprsPkt);
-          // Tokenize the response
-          char* pch;
-          pch = strtok(aprsPkt, " ");
-          while (pch != NULL) {
-            if (strcmp(pch, "verified") == 0) {
-              result = true;
-              break;
-            }
-            pch = strtok(NULL, " ");
-          }
+        int rlen = aprsClient.readBytesUntil('\n', aprsPkt, sizeof(aprsPkt));
+        aprsPkt[rlen] = '\0';
+        Serial.printf("[APRS %3d<] ", rlen); Serial.print(aprsPkt);
+        // Tokenize the response
+        char* pch;
+        pch = strtok(aprsPkt, " ");
+        while (pch != NULL) {
+        if (strcmp(pch, "verified") == 0) {
+          result = true;
+          break;
+        }
+        pch = strtok(NULL, " ");
+        }
       */
     }
   }
@@ -331,7 +336,7 @@ bool APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
   setLocation(lat, lng);
   strcat_P(aprsPkt, aprsLocation);
   // Course and speed
-  if (spd > 0) {
+  if (spd >= 0 and cse >= 0) {
     snprintf_P(buf, bufSize, PSTR("%03d/%03d"), cse, spd);
     strncat(aprsPkt, buf, bufSize);
   }
