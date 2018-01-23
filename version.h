@@ -1,7 +1,7 @@
 /**
   version.h
 
-  Copyright (c) 2017 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
 
   This file is part of WiFi_APRS_Tracker.
 */
@@ -14,6 +14,6 @@
 // Device specific constants
 const char NODENAME[] = "WiFiTrk";
 const char nodename[] = "wifitrk";
-const char VERSION[]  = "0.2.9";
+const char VERSION[]  = "0.2.10";
 
 #endif /* VERSION_H */

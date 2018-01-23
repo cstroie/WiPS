@@ -1,7 +1,7 @@
 /**
   ntp.cpp - Network Time Protocol
 
-  Copyright (c) 2017 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
 
   This file is part of WiFi_APRS_Tracker.
 */
