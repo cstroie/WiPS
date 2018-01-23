@@ -2,7 +2,7 @@
   WiFi APRS Tracker - Automated Position Reporting System based on Wifi
                       geolocation, using Mozilla Location Services
 
-  Copyright (c) 2017 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
 
   This file is part of WiFi_APRS_Tracker.
 */
@@ -250,7 +250,7 @@ void loop() {
     // Log the APRS time
     char aprsTime[10] = "";
     aprs.time(aprsTime, sizeof(aprsTime));
-    Serial.print("["); Serial.print(aprsTime); Serial.print("] ");
+    Serial.print("[W "); Serial.print(aprsTime); Serial.print("] ");
 
     // Check the time and set the telemetry bit 0 if time is not accurate
     if (!ntp.valid) aprs.aprsTlmBits |= B00000001;
@@ -313,10 +313,15 @@ void loop() {
               char buf[45] = "";
               // Prepare the comment
               snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Vcc:%d.%d RSSI:%d"), acc, (int)(mls.distance), (int)(3.6 * mls.speed), vcc / 1000, (vcc % 1000) / 100, rssi);
-              // Report course and speed if the geolocation accuracy is better than moving distance
+              // Report course and speed
+              aprs.sendPosition(mls.current.latitude, mls.current.longitude, mls.bearing, mls.knots, -1, buf);
+              // Send the telemetry
+              aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed / 0.0008)), aprs.aprsTlmBits);
+              // Send the status
+              //snprintf_P(buf, sizeof(buf), PSTR("%s/%s, Vcc: %d.%3dV, RSSI: %ddBm"), NODENAME, VERSION, vcc / 1000, vcc % 1000, rssi);
+              //aprs.sendStatus(buf);
+              // Adjust the delay (aka SmartBeaconing)
               if (moving) {
-                // Report
-                aprs.sendPosition(mls.current.latitude, mls.current.longitude, mls.bearing, lround(mls.speed * 1.94384449), -1, buf);
                 // Reset the delay to minimum
                 rpDelay = rpDelayMin;
                 // Set the telemetry bits 4 and 5 if moving, according to the speed
@@ -324,30 +329,26 @@ void loop() {
                 else                aprs.aprsTlmBits |= B00010000;
               }
               else {
-                // Report
-                aprs.sendPosition(mls.current.latitude, mls.current.longitude, mls.bearing, 0, -1, buf);
-                // Not moving, increase the delay to a maximum
+                // Not moving, increase the delay up to a maximum
                 rpDelay += rpDelayStep;
                 if (rpDelay > rpDelayMax) rpDelay = rpDelayMax;
               }
-              // Send the telemetry
-              aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed / 0.0008)), aprs.aprsTlmBits);
-              // Send the status
-              //snprintf_P(buf, sizeof(buf), PSTR("%s/%s, Vcc: %d.%3dV, RSSI: %ddBm"), NODENAME, VERSION, vcc / 1000, vcc % 1000, rssi);
-              //aprs.sendStatus(buf);
-            }
-            else {
-              // Reset the delay to minimum
-              rpDelay = rpDelayMin;
             }
             // Close the connection
             aprs.stop();
           }
-          // Led OFF
-          setLED(0);
+
+          // On error, reset the delay to the minimum
+          if (aprs.error) {
+            rpDelay = rpDelayMin;
+            aprs.error = false;
+          }
 
           // Repeat the report after the delay
           rpNextTime = now + rpDelay;
+
+          // Led OFF
+          setLED(0);
         }
       }
       else {
