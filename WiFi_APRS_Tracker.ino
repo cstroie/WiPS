@@ -110,16 +110,14 @@ void wifiCallback(WiFiManager *wifiMgr) {
 /**
   Try to connect to WiFi
 */
-void wifiConnect() {
+void wifiConnect(int timeout = 300) {
   // Set the host name
   WiFi.hostname(NODENAME);
-  // Store credentials only if changed
-  //WiFi.persistent(false);
   // Led ON
   setLED(10);
   // Try to connect to WiFi
 #ifdef WIFI_SSID
-  Serial.print("WiFi connecting ");
+  Serial.print(F("WiFi connecting "));
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   while (!WiFi.isConnected()) {
     Serial.print(".");
@@ -129,7 +127,7 @@ void wifiConnect() {
 #else
   setLED(4);
   WiFiManager wifiManager;
-  wifiManager.setTimeout(300);
+  wifiManager.setTimeout(timeout);
   wifiManager.setAPCallback(wifiCallback);
   while (!wifiManager.autoConnect(NODENAME)) {
     setLED(2);
@@ -240,8 +238,8 @@ void loop() {
 
   // Check if we should geolocate
   if (now >= geoNextTime) {
-    // Make sure we are connected
-    if (!WiFi.isConnected()) wifiConnect();
+    // Make sure we are connected, shorter timeout
+    if (!WiFi.isConnected()) wifiConnect(60);
 
     // Set the telemetry bit 7 if the tracker is being probed
     if (PROBE) aprs.aprsTlmBits = B10000000;
