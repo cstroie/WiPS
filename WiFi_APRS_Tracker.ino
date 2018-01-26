@@ -50,8 +50,10 @@ unsigned long rpDelayStep = 30;   // Step to increase the delay between reportin
 unsigned long rpDelayMin  = 30;   // Minimum delay between reporting
 unsigned long rpDelayMax  = 1800; // Maximum delay between reporting
 
-// Smoothen accuracy
-int sacc;
+// Smooth accuracy, speed and course
+int sAcc = -1;
+int sSpd = -1;
+int sCrs = -1;
 
 /**
   Convert IPAddress to char array
@@ -248,7 +250,7 @@ void loop() {
     // Log the APRS time
     char aprsTime[10] = "";
     aprs.time(aprsTime, sizeof(aprsTime));
-    Serial.print("[W "); Serial.print(aprsTime); Serial.print("] ");
+    Serial.print(""); Serial.print(aprsTime); Serial.print("  ");
 
     // Check the time and set the telemetry bit 0 if time is not accurate
     if (!ntp.valid) aprs.aprsTlmBits |= B00000001;
@@ -271,18 +273,24 @@ void loop() {
       // Led off
       setLED(4);
 
-      // Exponential smoothing the accuracy
-      if (sacc < 0) sacc = acc;
-      else          sacc = (((sacc << 2) - sacc + acc) + 2) >> 2;
+      // Exponential smooth the accuracy
+      if (sAcc < 0) sAcc = acc;
+      else          sAcc = (((sAcc << 2) - sAcc + acc) + 2) >> 2;
 
       if (mls.current.valid) {
         Serial.print(mls.current.latitude, 6); Serial.print(","); Serial.print(mls.current.longitude, 6);
         Serial.print(F(" acc "));      Serial.print(acc); Serial.println("m.");
 
         // Check if moving
-        bool moving = mls.getMovement() >= (sacc >> 2);
+        bool moving = mls.getMovement() >= (sAcc >> 2);
         if (moving) {
-          Serial.print(F("          "));
+          // Exponential smooth the speed and bearing
+          if (sSpd < 0) sSpd = mls.knots;
+          else          sSpd = (((sSpd << 2) - sSpd + mls.knots) + 2) >> 2;
+          if (sCrs < 0) sCrs = mls.bearing;
+          else          sCrs = (((sCrs << 2) - sCrs + mls.bearing) + 2) >> 2;
+          // Report
+          Serial.print(F("         "));
           Serial.print(F("Dst: ")); Serial.print(mls.distance, 2); Serial.print("m  ");
           Serial.print(F("Spd: ")); Serial.print(mls.speed, 2);    Serial.print("m/s  ");
           Serial.print(F("Crs: ")); Serial.print(mls.bearing);
@@ -312,9 +320,10 @@ void loop() {
               // Prepare the comment
               snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Vcc:%d.%d RSSI:%d"), acc, (int)(mls.distance), (int)(3.6 * mls.speed), vcc / 1000, (vcc % 1000) / 100, rssi);
               // Report course and speed
-              aprs.sendPosition(mls.current.latitude, mls.current.longitude, mls.bearing, mls.knots, -1, buf);
+              aprs.sendPosition(mls.current.latitude, mls.current.longitude, sCrs, sSpd, -1, buf);
               // Send the telemetry
-              aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed / 0.0008)), aprs.aprsTlmBits);
+              //   mls.speed / 0.0008 = mls.speed * 1250
+              aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed * 1250)), aprs.aprsTlmBits);
               // Send the status
               //snprintf_P(buf, sizeof(buf), PSTR("%s/%s, Vcc: %d.%3dV, RSSI: %ddBm"), NODENAME, VERSION, vcc / 1000, vcc % 1000, rssi);
               //aprs.sendStatus(buf);
