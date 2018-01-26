@@ -69,6 +69,7 @@ int MLS::wifiScan(bool sort) {
   @return the geolocation accuracy
 */
 int MLS::geoLocation() {
+  int   err = -1;
   int   acc = -1;
   float lat = 0.0;
   float lng = 0.0;
@@ -179,6 +180,7 @@ int MLS::geoLocation() {
       if      (strstr_P(buf, PSTR("\"lat\"")))      lat = geoClient.parseFloat();
       else if (strstr_P(buf, PSTR("\"lng\"")))      lng = geoClient.parseFloat();
       else if (strstr_P(buf, PSTR("\"accuracy\""))) acc = geoClient.parseInt();
+      else if (strstr_P(buf, PSTR("\"code\"")))     err = geoClient.parseInt();
     }
     //Serial.println();
 
@@ -208,6 +210,9 @@ int MLS::geoLocation() {
       current.valid     = false;
     }
   }
+
+  // Check the error and return it as negative accuracy
+  if (err > 0) acc = -err;
 
   // Return the geolocation accuracy
   return acc;
