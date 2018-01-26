@@ -176,7 +176,7 @@ int MLS::geoLocation() {
     while (geoClient.connected()) {
       int rlen = geoClient.readBytesUntil(':', buf, bufSize);
       buf[rlen] = '\0';
-      if (strstr_P(buf, PSTR("\"lat\"")))           lat = geoClient.parseFloat();
+      if      (strstr_P(buf, PSTR("\"lat\"")))      lat = geoClient.parseFloat();
       else if (strstr_P(buf, PSTR("\"lng\"")))      lng = geoClient.parseFloat();
       else if (strstr_P(buf, PSTR("\"accuracy\""))) acc = geoClient.parseInt();
     }

@@ -16,9 +16,14 @@
 #include <WiFiClientSecure.h>
 #include "config.h"
 
-const char geoServer[]        = "location.services.mozilla.com";
-const int  geoPort            = 443;
-const char geoPOST[] PROGMEM  = "POST /v1/geolocate?key=" GEO_APIKEY " HTTP/1.1";
+// Define GeoLocation server
+#define GEO_SERVER    "location.services.mozilla.com"
+#define GEO_PORT      443
+#define GEO_POST      "POST /v1/geolocate?key=" GEO_APIKEY " HTTP/1.1"
+
+const char geoServer[]        = GEO_SERVER;
+const int  geoPort            = GEO_PORT;
+const char geoPOST[] PROGMEM  = GEO_POST;
 const char eol[]     PROGMEM  = "\r\n";
 
 struct geo_t {
