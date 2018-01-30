@@ -50,9 +50,8 @@ unsigned long rpDelayStep = 30;   // Step to increase the delay between reportin
 unsigned long rpDelayMin  = 30;   // Minimum delay between reporting
 unsigned long rpDelayMax  = 1800; // Maximum delay between reporting
 
-// Smooth accuracy, speed and course
+// Smooth accuracy and course
 int sAcc = -1;
-int sSpd = -1;
 int sCrs = -1;
 
 /**
@@ -284,9 +283,7 @@ void loop() {
         // Check if moving
         bool moving = mls.getMovement() >= (sAcc >> 2);
         if (moving) {
-          // Exponential smooth the speed and bearing
-          if (sSpd < 0) sSpd = mls.knots;
-          else          sSpd = (((sSpd << 2) - sSpd + mls.knots) + 2) >> 2;
+          // Exponential smooth the bearing
           if (sCrs < 0) sCrs = mls.bearing;
           else          sCrs = (((sCrs << 2) - sCrs + mls.bearing) + 2) >> 2;
           // Report
@@ -320,7 +317,7 @@ void loop() {
               // Prepare the comment
               snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Vcc:%d.%d RSSI:%d"), acc, (int)(mls.distance), (int)(3.6 * mls.speed), vcc / 1000, (vcc % 1000) / 100, rssi);
               // Report course and speed
-              aprs.sendPosition(mls.current.latitude, mls.current.longitude, sCrs, sSpd, -1, buf);
+              aprs.sendPosition(mls.current.latitude, mls.current.longitude, sCrs, mls.knots, -1, buf);
               // Send the telemetry
               //   mls.speed / 0.0008 = mls.speed * 1250
               aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed * 1250)), aprs.aprsTlmBits);
