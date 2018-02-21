@@ -38,6 +38,10 @@ NTP ntp;
 #include "aprs.h"
 APRS aprs;
 
+// NMEA
+#include "nmea.h"
+NMEA nmea;
+
 // Set ADC to Voltage
 ADC_MODE(ADC_VCC);
 
@@ -206,7 +210,6 @@ void setup() {
 
   // Configure APRS
   aprs.init(APRS_SERVER, APRS_PORT);
-  aprs.setNTP(ntp);
   // Use an automatic callsign
   aprs.setCallSign();
   Serial.print(F("APRS callsign: ")); Serial.print(aprs.aprsCallSign);
@@ -248,7 +251,7 @@ void loop() {
 
     // Log the APRS time
     char aprsTime[10] = "";
-    aprs.time(aprsTime, sizeof(aprsTime));
+    aprs.time(ntp.getSeconds(), aprsTime, sizeof(aprsTime));
     Serial.print(""); Serial.print(aprsTime); Serial.print("  ");
 
     // Check the time and set the telemetry bit 0 if time is not accurate
@@ -277,6 +280,9 @@ void loop() {
       else          sAcc = (((sAcc << 2) - sAcc + acc) + 2) >> 2;
 
       if (mls.current.valid) {
+        // Get the time of the fix
+        unsigned long utm = ntp.getSeconds();
+        // Report
         Serial.print(mls.current.latitude, 6); Serial.print(","); Serial.print(mls.current.longitude, 6);
         Serial.print(F(" acc "));      Serial.print(acc); Serial.println("m.");
 
@@ -293,6 +299,9 @@ void loop() {
           Serial.print(F("Crs: ")); Serial.print(mls.bearing);
           Serial.println();
         }
+
+        // NMEA
+        nmea.send(utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing, 1, found);
 
         // Read the Vcc (mV)
         int vcc  = ESP.getVcc();
@@ -317,7 +326,7 @@ void loop() {
               // Prepare the comment
               snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Vcc:%d.%d RSSI:%d"), acc, (int)(mls.distance), (int)(3.6 * mls.speed), vcc / 1000, (vcc % 1000) / 100, rssi);
               // Report course and speed
-              aprs.sendPosition(mls.current.latitude, mls.current.longitude, sCrs, mls.knots, -1, buf);
+              aprs.sendPosition(utm, mls.current.latitude, mls.current.longitude, sCrs, mls.knots, -1, buf);
               // Send the telemetry
               //   mls.speed / 0.0008 = mls.speed * 1250
               aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed * 1250)), aprs.aprsTlmBits);
