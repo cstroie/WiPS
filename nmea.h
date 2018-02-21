@@ -15,7 +15,9 @@ class NMEA {
   public:
     NMEA();
     void          init();
-    void          send();
+    void          send(unsigned long utm, float lat, float lng, int spd, int crs, int fix, int sat);
+  private:
+    int           checksum(const char *s);
 };
 
 #endif /* NMEA_H */
