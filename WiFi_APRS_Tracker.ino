@@ -10,6 +10,8 @@
 // True if the tracker is being probed
 bool PROBE = true;
 
+#define MAX_SRV_CLIENTS 4
+
 // User settings
 #include "config.h"
 
@@ -19,6 +21,9 @@ bool PROBE = true;
 // WiFi
 #include <ESP8266WiFi.h>
 #include <WiFiManager.h>
+
+WiFiServer server(23);
+WiFiClient serverClients[MAX_SRV_CLIENTS];
 
 // OTA
 #include <ESP8266mDNS.h>
@@ -216,6 +221,22 @@ void setup() {
   randomSeed(ntp.getSeconds(false) + hwVcc + millis());
   aprs.aprsTlmSeq = random(1000);
   Serial.printf("$PHWMN,TLM,%d\r\n", aprs.aprsTlmSeq);
+
+  // Set up mDNS responder:
+  // - first argument is the domain name, in this example
+  //   the fully-qualified domain name is "esp8266.local"
+  // - second argument is the IP address to advertise
+  //   we send our IP address on the WiFi network
+  if (!MDNS.begin(nodename)) {
+    Serial.println("Error setting up MDNS responder!");
+  }
+
+  // Start NMEA TCP server
+  server.begin();
+  server.setNoDelay(true);
+
+  // Add service to MDNS-SD
+  MDNS.addService("telnet", "tcp", 23);
 }
 
 /**
@@ -288,11 +309,49 @@ void loop() {
         Serial.print("\r\n");
 
         // NMEA
-        char nmeaBuf[100];
-        nmea.sendGGA(nmeaBuf, 100, utm, mls.current.latitude, mls.current.longitude, 1, found);
-        Serial.print(nmeaBuf);
-        nmea.sendRMC(nmeaBuf, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
-        Serial.print(nmeaBuf);
+        char bufGGA[100], bufRMC[100];
+        int lenGGA = nmea.sendGGA(bufGGA, 100, utm, mls.current.latitude, mls.current.longitude, 1, found);
+        int lenRMC = nmea.sendRMC(bufRMC, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
+        Serial.print(bufGGA);
+        Serial.print(bufRMC);
+
+        // NMEA server
+        uint8_t i;
+        //check if there are any new clients
+        if (server.hasClient()) {
+          for (i = 0; i < MAX_SRV_CLIENTS; i++) {
+            //find free/disconnected spot
+            if (!serverClients[i] || !serverClients[i].connected()) {
+              if (serverClients[i]) serverClients[i].stop();
+              serverClients[i] = server.available();
+              break;
+            }
+          }
+          //no free/disconnected spot so reject
+          if ( i == MAX_SRV_CLIENTS) {
+            WiFiClient serverClient = server.available();
+            serverClient.stop();
+          }
+        }
+        //check clients for data
+        for (i = 0; i < MAX_SRV_CLIENTS; i++) {
+          if (serverClients[i] && serverClients[i].connected()) {
+            if (serverClients[i].available()) {
+              //get data from the telnet client and push it to the UART
+              while (serverClients[i].available()) serverClients[i].flush();
+            }
+          }
+        }
+        //send NMEA data to all connected telnet clients
+        for (i = 0; i < MAX_SRV_CLIENTS; i++) {
+          if (serverClients[i] && serverClients[i].connected()) {
+            serverClients[i].write(bufGGA, lenGGA);
+            delay(1);
+            serverClients[i].write(bufRMC, lenRMC);
+            delay(1);
+          }
+        }
+
 
         // Read the Vcc (mV)
         int vcc  = ESP.getVcc();
