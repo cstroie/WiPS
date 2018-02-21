@@ -49,8 +49,7 @@ unsigned long NTP::getSeconds(bool sync) {
       // Time sync has succeeded, sync again in 8 hours
       nextSync = millis() + 28800000UL;
       valid = true;
-      Serial.print(F("Network UNIX Time: 0x"));
-      Serial.println(utm, 16);
+      Serial.printf("$PNTPC,0x%08X\r\n", utm);
     }
   }
   // Get current time based on uptime and time delta,

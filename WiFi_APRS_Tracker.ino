@@ -70,28 +70,23 @@ char charIP(const IPAddress ip, char *buf, size_t len, boolean pad = false) {
   Display the WiFi parameters
 */
 void showWiFi() {
-  Serial.println();
   if (WiFi.isConnected()) {
     char ipbuf[16] = "";
     char gwbuf[16] = "";
     char nsbuf[16] = "";
 
     // Get the IPs as char arrays
-    charIP(WiFi.localIP(),   ipbuf, sizeof(ipbuf), true);
-    charIP(WiFi.gatewayIP(), gwbuf, sizeof(gwbuf), true);
-    charIP(WiFi.dnsIP(),     nsbuf, sizeof(nsbuf), true);
+    charIP(WiFi.localIP(),   ipbuf, sizeof(ipbuf), false);
+    charIP(WiFi.gatewayIP(), gwbuf, sizeof(gwbuf), false);
+    charIP(WiFi.dnsIP(),     nsbuf, sizeof(nsbuf), false);
 
     // Print
-    Serial.print(F("WiFi connected to ")); Serial.print(WiFi.SSID());
-    Serial.print(F(" on channel "));       Serial.print(WiFi.channel());
-    Serial.print(F(", RSSI "));            Serial.print(WiFi.RSSI());    Serial.println(F(" dBm."));
-    Serial.print(F(" IP : "));             Serial.println(ipbuf);
-    Serial.print(F(" GW : "));             Serial.println(gwbuf);
-    Serial.print(F(" DNS: "));             Serial.println(nsbuf);
-    Serial.println();
+    Serial.printf("$PWIFI,CFG,%s,%d,%d,%s,%s,%s\r\n",
+                  WiFi.SSID().c_str(), WiFi.channel(), WiFi.RSSI(),
+                  ipbuf, gwbuf, nsbuf);
   }
   else {
-    Serial.print(F("WiFi not connected"));
+    Serial.print("$PWIFI,ERR\r\n");
   }
 }
 
@@ -107,8 +102,7 @@ void setLED(int load) {
   Feedback notification when SoftAP is started
 */
 void wifiCallback(WiFiManager *wifiMgr) {
-  Serial.print(F("Connect to "));
-  Serial.println(wifiMgr->getConfigPortalSSID());
+  Serial.printf("$PWIFI,SRV,%s\r\n", wifiMgr->getConfigPortalSSID().c_str());
   setLED(10);
 }
 
@@ -122,13 +116,13 @@ void wifiConnect(int timeout = 300) {
   setLED(10);
   // Try to connect to WiFi
 #ifdef WIFI_SSID
-  Serial.print(F("WiFi connecting "));
+  Serial.printf("$PWIFI,BGN,%s\r\n", WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   while (!WiFi.isConnected()) {
-    Serial.print(".");
+    Serial.printf("$PWIFI,TRY,%s\r\n", WIFI_SSID);
     delay(1000);
   };
-  Serial.println(F(" done."));
+  Serial.printf("$PWIFI,CON,%s\r\n", WIFI_SSID);
 #else
   setLED(4);
   WiFiManager wifiManager;
@@ -148,13 +142,8 @@ void wifiConnect(int timeout = 300) {
 */
 void setup() {
   // Init the serial communication
-  Serial.begin(115200);
-  Serial.println();
-  Serial.print(NODENAME);
-  Serial.print(" ");
-  Serial.print(VERSION);
-  Serial.print(" ");
-  Serial.println(__DATE__);
+  Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
+  Serial.printf("$PVERS,%s,%s,%s\r\n", NODENAME, VERSION, __DATE__);
 
   // Initialize the LED_BUILTIN pin as an output
   pinMode(LED_BUILTIN, OUTPUT);
@@ -173,37 +162,37 @@ void setup() {
 #endif
 
   ArduinoOTA.onStart([]() {
-    Serial.println(F("OTA Start"));
+    Serial.print("$POTA,START\r\n");
   });
 
   ArduinoOTA.onEnd([]() {
-    Serial.println("\nOTA Finished");
+    Serial.print("\r\n$POTA,FINISHED\r\n");
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     int otaPrg = progress / (total / 100);
     if (otaProgress != otaPrg) {
       otaProgress = otaPrg;
-      Serial.printf("Progress: %u%%\r", otaProgress * 100);
+      Serial.printf("$POTA,PROGRESS,%u%%\r\n", otaProgress * 100);
     }
   });
 
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
+    Serial.printf("$POTA,ERROR,%u,", error);
     if (error == OTA_AUTH_ERROR)
-      Serial.println(F("Auth Failed"));
+      Serial.print(F("Auth Failed\r\n"));
     else if (error == OTA_BEGIN_ERROR)
-      Serial.println(F("Begin Failed"));
+      Serial.print(F("Begin Failed\r\n"));
     else if (error == OTA_CONNECT_ERROR)
-      Serial.println(F("Connect Failed"));
+      Serial.print(F("Connect Failed\r\n"));
     else if (error == OTA_RECEIVE_ERROR)
-      Serial.println(F("Receive Failed"));
+      Serial.print(F("Receive Failed\r\n"));
     else if (error == OTA_END_ERROR)
-      Serial.println(F("End Failed"));
+      Serial.print(F("End Failed\r\n"));
   });
 
   ArduinoOTA.begin();
-  Serial.println(F("OTA Ready"));
+  Serial.print("$POTA,READY\r\n");
 
   // Configure NTP
   ntp.init(NTP_SERVER);
@@ -212,21 +201,21 @@ void setup() {
   aprs.init(APRS_SERVER, APRS_PORT);
   // Use an automatic callsign
   aprs.setCallSign();
-  Serial.print(F("APRS callsign: ")); Serial.print(aprs.aprsCallSign);
-  Serial.print(F(", passcode: ")); Serial.print(aprs.aprsPassCode);
-  //Serial.print(F(", object: ")); Serial.print(aprs.aprsObjectNm);
-  Serial.println();
+  Serial.print(F("$PAPRS,AUTH,")); Serial.print(aprs.aprsCallSign);
+  Serial.print(","); Serial.print(aprs.aprsPassCode);
+  //Serial.print(","); Serial.print(aprs.aprsObjectNm);
+  Serial.print("\r\n");
 
   // Hardware data
   int hwVcc  = ESP.getVcc();
-  Serial.print(F("Vcc : "));
-  Serial.println((float)hwVcc / 1000, 3);
+  Serial.print("$PHWMN,VCC,");
+  Serial.print((float)hwVcc / 1000, 3);
+  Serial.print("\r\n");
 
   // Initialize the random number generator and set the APRS telemetry start sequence
   randomSeed(ntp.getSeconds(false) + hwVcc + millis());
   aprs.aprsTlmSeq = random(1000);
-  Serial.print(F("TLM : "));
-  Serial.println(aprs.aprsTlmSeq);
+  Serial.printf("$PHWMN,TLM,%d\r\n", aprs.aprsTlmSeq);
 }
 
 /**
@@ -249,11 +238,6 @@ void loop() {
     if (PROBE) aprs.aprsTlmBits = B10000000;
     else       aprs.aprsTlmBits = B00000000;
 
-    // Log the APRS time
-    char aprsTime[10] = "";
-    aprs.time(ntp.getSeconds(), aprsTime, sizeof(aprsTime));
-    Serial.print(""); Serial.print(aprsTime); Serial.print("  ");
-
     // Check the time and set the telemetry bit 0 if time is not accurate
     if (!ntp.valid) aprs.aprsTlmBits |= B00000001;
     // Set the telemetry bit 1 if the uptime is less than one day (recent reboot)
@@ -263,14 +247,14 @@ void loop() {
     setLED(4);
 
     // Scan the WiFi access points
-    Serial.print(F("WiFi networks... "));
+    Serial.print("$PSCAN,WIFI,");
     int found = mls.wifiScan(false);
 
     // Get the coordinates
     if (found > 0) {
       // Led on
       setLED(6);
-      Serial.print(found); Serial.print(F(" found, geolocating... "));
+      Serial.print(found);
       int acc = mls.geoLocation();
       // Led off
       setLED(4);
@@ -283,8 +267,12 @@ void loop() {
         // Get the time of the fix
         unsigned long utm = ntp.getSeconds();
         // Report
-        Serial.print(mls.current.latitude, 6); Serial.print(","); Serial.print(mls.current.longitude, 6);
-        Serial.print(F(" acc "));      Serial.print(acc); Serial.println("m.");
+        Serial.print(F(",LAT,"));
+        Serial.print(mls.current.latitude, 6);
+        Serial.print(",LNG,");
+        Serial.print(mls.current.longitude, 6);
+        Serial.print(F(",ACC,"));
+        Serial.print(acc);
 
         // Check if moving
         bool moving = mls.getMovement() >= (sAcc >> 2);
@@ -293,12 +281,11 @@ void loop() {
           if (sCrs < 0) sCrs = mls.bearing;
           else          sCrs = (((sCrs << 2) - sCrs + mls.bearing) + 2) >> 2;
           // Report
-          Serial.print(F("         "));
-          Serial.print(F("Dst: ")); Serial.print(mls.distance, 2); Serial.print("m  ");
-          Serial.print(F("Spd: ")); Serial.print(mls.speed, 2);    Serial.print("m/s  ");
-          Serial.print(F("Crs: ")); Serial.print(mls.bearing);
-          Serial.println();
+          Serial.print(F(",DST,")); Serial.print(mls.distance, 2);
+          Serial.print(F(",SPD,")); Serial.print(mls.speed, 2);
+          Serial.print(F(",CRS,")); Serial.print(mls.bearing);
         }
+        Serial.print("\r\n");
 
         // NMEA
         nmea.send(utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing, 1, found);
@@ -365,14 +352,14 @@ void loop() {
         }
       }
       else {
-        Serial.print(F("failed, acc "));
+        Serial.print(F(",ACC,"));
         Serial.print(acc);
-        Serial.println("m.");
+        Serial.print("\r\n");
       }
     }
     else {
       // No WiFi networks
-      Serial.println(F("none."));
+      Serial.print(F("NONE\r\n"));
     }
 
     // Led off

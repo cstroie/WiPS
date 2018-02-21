@@ -130,7 +130,7 @@ bool APRS::send(const char *pkt) {
     yield();
 #endif
 #ifdef DEBUG
-    Serial.printf("APRS%3d> ", plen); Serial.print(pkt);
+    Serial.printf("$PAPRS,%03d,%s", plen, pkt);
 #endif
   }
   else
@@ -196,7 +196,7 @@ bool APRS::authenticate() {
       /*
         int rlen = aprsClient.readBytesUntil('\n', aprsPkt, sizeof(aprsPkt));
         aprsPkt[rlen] = '\0';
-        Serial.printf("APRS%3d< ", rlen); Serial.print(aprsPkt);
+        Serial.printf("$PAPRS,%03d,%s\r\n", rlen, aprsPkt);
         // Tokenize the response
         char* pch;
         pch = strtok(aprsPkt, " ");
