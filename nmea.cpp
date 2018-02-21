@@ -15,7 +15,7 @@ NMEA::NMEA() {
 void NMEA::init() {
 }
 
-void NMEA::sendGGA(char *buf, size_t len, unsigned long utm, float lat, float lng, int fix, int sat) {
+int NMEA::sendGGA(char *buf, size_t len, unsigned long utm, float lat, float lng, int fix, int sat) {
   // Local buffers
   char ckbuf[8] = "";
   // Compute hour, minute and second
@@ -36,8 +36,10 @@ void NMEA::sendGGA(char *buf, size_t len, unsigned long utm, float lat, float ln
              fix, sat);
   sprintf(ckbuf, "*%02X\r\n", checksum(buf));
   strcat(buf, ckbuf);
+  return strlen(buf);
 }
-void NMEA::sendRMC(char *buf, size_t len, unsigned long utm, float lat, float lng, int spd, int crs) {
+
+int NMEA::sendRMC(char *buf, size_t len, unsigned long utm, float lat, float lng, int spd, int crs) {
   // Local buffers
   char ckbuf[8] = "";
   // Compute hour, minute and second
@@ -58,6 +60,7 @@ void NMEA::sendRMC(char *buf, size_t len, unsigned long utm, float lat, float ln
              spd, crs);
   sprintf(ckbuf, "*%02X\r\n", checksum(buf));
   strcat(buf, ckbuf);
+  return strlen(buf);
 }
 
 /**
