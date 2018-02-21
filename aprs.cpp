@@ -27,10 +27,6 @@ void APRS::setServer(const char *server, int port) {
   setServer(server);
 }
 
-void APRS::setNTP(NTP &n) {
-  ntp = n;
-}
-
 bool APRS::connect(const char *server, int port) {
   setServer(server, port);
   return connect();
@@ -149,12 +145,11 @@ bool APRS::send() {
 /**
   Return time in zulu APRS format: HHMMSSh
 
+  @param utm UNIX time
   @param *buf the buffer to return the time to
   @param len the buffer length
 */
-void APRS::time(char *buf, size_t len) {
-  // Get the ZULU time
-  unsigned long utm = ntp.getSeconds();
+void APRS::time(unsigned long utm, char *buf, size_t len) {
   // Compute hour, minute and second
   int hh = (utm % 86400L) / 3600;
   int mm = (utm % 3600) / 60;
@@ -310,7 +305,7 @@ void APRS::setLocation(float lat, float lng) {
 
   @param comment the comment to append
 */
-bool APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const char *comment, const char *object) {
+bool APRS::sendPosition(unsigned long utm, float lat, float lng, int cse, int spd, float alt, const char *comment, const char *object) {
   // Local buffer
   const int bufSize = 20;
   char buf[bufSize] = "";
@@ -324,7 +319,7 @@ bool APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
     strcat_P(aprsPkt, PSTR(";"));
     strcat(aprsPkt, object);
     strcat_P(aprsPkt, PSTR("*"));
-    time(buf, bufSize);
+    time(utm, buf, bufSize);
     strncat(aprsPkt, buf, bufSize);
   }
   else {
@@ -366,8 +361,8 @@ bool APRS::sendPosition(float lat, float lng, int cse, int spd, float alt, const
 
   @param comment the comment to append
 */
-bool APRS::sendObjectPosition(float lat, float lng, int cse, int spd, float alt, const char *comment) {
-  return sendPosition(lat, lng, cse, spd, alt, comment, aprsObjectNm);
+bool APRS::sendObjectPosition(unsigned long utm, float lat, float lng, int cse, int spd, float alt, const char *comment) {
+  return sendPosition(utm, lat, lng, cse, spd, alt, comment, aprsObjectNm);
 }
 
 /**
@@ -379,14 +374,14 @@ bool APRS::sendObjectPosition(float lat, float lng, int cse, int spd, float alt,
   @param pres athmospheric pressure (QNH) in dPa
   @param srad solar radiation in W/m^2
 */
-bool APRS::sendWeather(int temp, int hmdt, int pres, int srad) {
+bool APRS::sendWeather(unsigned long utm, int temp, int hmdt, int pres, int srad) {
   const int bufSize = 10;
   char buf[bufSize] = "";
   // Weather report
   strcpy_P(aprsPkt, aprsCallSign);
   strcat_P(aprsPkt, aprsPath);
   strcat_P(aprsPkt, PSTR("@"));
-  time(buf, bufSize);
+  time(utm, buf, bufSize);
   strncat(aprsPkt, buf, bufSize);
   setSymbol('/', '_');
   strcat_P(aprsPkt, aprsLocation);

@@ -15,7 +15,6 @@
 
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
-#include "ntp.h"
 #include "version.h"
 
 // APRS constants
@@ -39,7 +38,6 @@ class APRS {
     void init(const char *server, int port);
     void setServer(const char *server);
     void setServer(const char *server, int port);
-    void setNTP(NTP &n);
     bool connect(const char *server, int port);
     bool connect();
     void stop();
@@ -49,7 +47,7 @@ class APRS {
     void setObjectName(const char *callsign = NULL);
     bool send(const char *pkt);
     bool send();
-    void time(char *buf, size_t len);
+    void time(unsigned long utm, char *buf, size_t len);
     bool authenticate(const char *callsign, const char *passcode);
     bool authenticate();
     void setSymbol(const char table, const char symbol);
@@ -58,9 +56,9 @@ class APRS {
     void coordinates(char *buf, float lat, float lng, char table, char symbol);
     void coordinates(char *buf, float lat, float lng);
     void setLocation(float lat, float lng);
-    bool sendPosition(float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL, const char *object = NULL);
-    bool sendObjectPosition(float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL);
-    bool sendWeather(int temp, int hmdt, int pres, int srad);
+    bool sendPosition(unsigned long utm, float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL, const char *object = NULL);
+    bool sendObjectPosition(unsigned long utm, float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL);
+    bool sendWeather(unsigned long utm, int temp, int hmdt, int pres, int srad);
     bool sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits);
     bool sendTelemetrySetup();
     char aprsCallSign[10];
@@ -72,7 +70,6 @@ class APRS {
 
   private:
     WiFiClient aprsClient;
-    NTP   ntp;
     char  aprsPkt[250];
     char  aprsServer[50];             // CWOP APRS-IS server address to connect to
     int   aprsPort;                   // CWOP APRS-IS port
