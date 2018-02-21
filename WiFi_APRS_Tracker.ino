@@ -288,7 +288,11 @@ void loop() {
         Serial.print("\r\n");
 
         // NMEA
-        nmea.send(utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing, 1, found);
+        char nmeaBuf[100];
+        nmea.sendGGA(nmeaBuf, 100, utm, mls.current.latitude, mls.current.longitude, 1, found);
+        Serial.print(nmeaBuf);
+        nmea.sendRMC(nmeaBuf, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
+        Serial.print(nmeaBuf);
 
         // Read the Vcc (mV)
         int vcc  = ESP.getVcc();

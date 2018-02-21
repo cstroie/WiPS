@@ -15,7 +15,8 @@ class NMEA {
   public:
     NMEA();
     void          init();
-    void          send(unsigned long utm, float lat, float lng, int spd, int crs, int fix, int sat);
+    void          sendGGA(char *buf, size_t len, unsigned long utm, float lat, float lng, int fix, int sat);
+    void          sendRMC(char *buf, size_t len, unsigned long utm, float lat, float lng, int spd, int crs);
   private:
     int           checksum(const char *s);
 };
