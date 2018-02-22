@@ -10,8 +10,6 @@
 // True if the tracker is being probed
 bool PROBE = true;
 
-#define MAX_SRV_CLIENTS 4
-
 // User settings
 #include "config.h"
 
@@ -22,8 +20,11 @@ bool PROBE = true;
 #include <ESP8266WiFi.h>
 #include <WiFiManager.h>
 
-WiFiServer server(23);
-WiFiClient serverClients[MAX_SRV_CLIENTS];
+// NMEA server
+#define MAX_NMEA_CLIENTS 2
+const int  nmeaPort = 23;
+WiFiServer nmeaServer(nmeaPort);
+WiFiClient nmeaClient[MAX_NMEA_CLIENTS];
 
 // OTA
 #include <ESP8266mDNS.h>
@@ -143,6 +144,59 @@ void wifiConnect(int timeout = 300) {
 }
 
 /**
+  Check the connected clients to NMEA server
+*/
+void nmeaClientCheck() {
+  int i;
+  // Check if there are any new clients
+  if (nmeaServer.hasClient()) {
+    for (i = 0; i < MAX_NMEA_CLIENTS; i++) {
+      // Find free or disconnected slots
+      if ((not nmeaClient[i]) or
+          (not nmeaClient[i].connected())) {
+        if (nmeaClient[i]) nmeaClient[i].stop();
+        nmeaClient[i] = nmeaServer.available();
+        break;
+      }
+    }
+    // No free or disconnected splots, so reject
+    if (i == MAX_NMEA_CLIENTS) {
+      WiFiClient serverClient = nmeaServer.available();
+      serverClient.stop();
+    }
+  }
+
+  // Flush client data
+  for (i = 0; i < MAX_NMEA_CLIENTS; i++) {
+    if (nmeaClient[i] and nmeaClient[i].connected()) {
+      if (nmeaClient[i].available()) {
+        // Flush the data
+        nmeaClient[i].flush();
+      }
+    }
+  }
+}
+
+/**
+  Send the NMEA sentence to all connected clients
+
+  @param sentence the NMEA sentence
+*/
+void nmeaClientSend(char *sentence, size_t len) {
+  // Send the NMEA data to all connected
+  for (int i = 0; i < MAX_NMEA_CLIENTS; i++) {
+    if (nmeaClient[i] && nmeaClient[i].connected()) {
+      nmeaClient[i].write(sentence, len);
+      yield();
+    }
+    else {
+      // Stop the disconnected client
+      if (nmeaClient[i]) nmeaClient[i].stop();
+    }
+  }
+}
+
+/**
   Main Arduino setup function
 */
 void setup() {
@@ -232,11 +286,11 @@ void setup() {
   }
 
   // Start NMEA TCP server
-  server.begin();
-  server.setNoDelay(true);
+  nmeaServer.begin();
+  nmeaServer.setNoDelay(true);
 
   // Add service to MDNS-SD
-  MDNS.addService("telnet", "tcp", 23);
+  MDNS.addService("GPS", "tcp", nmeaPort);
 }
 
 /**
@@ -246,6 +300,9 @@ void loop() {
   // Handle OTA
   ArduinoOTA.handle();
   yield();
+
+  // Handle NMEA clients
+  nmeaClientCheck();
 
   // Uptime
   unsigned long now = millis() / 1000;
@@ -310,48 +367,14 @@ void loop() {
 
         // NMEA
         char bufGGA[100], bufRMC[100];
-        int lenGGA = nmea.sendGGA(bufGGA, 100, utm, mls.current.latitude, mls.current.longitude, 1, found);
-        int lenRMC = nmea.sendRMC(bufRMC, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
+        int lenGGA = nmea.getGGA(bufGGA, 100, utm, mls.current.latitude, mls.current.longitude, 1, found);
+        int lenRMC = nmea.getRMC(bufRMC, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
         Serial.print(bufGGA);
         Serial.print(bufRMC);
 
         // NMEA server
-        uint8_t i;
-        //check if there are any new clients
-        if (server.hasClient()) {
-          for (i = 0; i < MAX_SRV_CLIENTS; i++) {
-            //find free/disconnected spot
-            if (!serverClients[i] || !serverClients[i].connected()) {
-              if (serverClients[i]) serverClients[i].stop();
-              serverClients[i] = server.available();
-              break;
-            }
-          }
-          //no free/disconnected spot so reject
-          if ( i == MAX_SRV_CLIENTS) {
-            WiFiClient serverClient = server.available();
-            serverClient.stop();
-          }
-        }
-        //check clients for data
-        for (i = 0; i < MAX_SRV_CLIENTS; i++) {
-          if (serverClients[i] && serverClients[i].connected()) {
-            if (serverClients[i].available()) {
-              //get data from the telnet client and push it to the UART
-              while (serverClients[i].available()) serverClients[i].flush();
-            }
-          }
-        }
-        //send NMEA data to all connected telnet clients
-        for (i = 0; i < MAX_SRV_CLIENTS; i++) {
-          if (serverClients[i] && serverClients[i].connected()) {
-            serverClients[i].write(bufGGA, lenGGA);
-            delay(1);
-            serverClients[i].write(bufRMC, lenRMC);
-            delay(1);
-          }
-        }
-
+        nmeaClientSend(bufGGA, lenGGA);
+        nmeaClientSend(bufRMC, lenRMC);
 
         // Read the Vcc (mV)
         int vcc  = ESP.getVcc();
