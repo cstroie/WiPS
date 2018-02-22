@@ -15,10 +15,16 @@ class NMEA {
   public:
     NMEA();
     void          init();
-    int           sendGGA(char *buf, size_t len, unsigned long utm, float lat, float lng, int fix, int sat);
-    int           sendRMC(char *buf, size_t len, unsigned long utm, float lat, float lng, int spd, int crs);
+    int           getGGA(char *buf, size_t len, unsigned long utm, float lat, float lng, int fix, int sat);
+    int           getRMC(char *buf, size_t len, unsigned long utm, float lat, float lng, int spd, int crs);
   private:
     int           checksum(const char *s);
+    void          getCoords(float lat, float lng);
+    void          getTime(unsigned long utm);
+    int           latDD, latMM, latFF, lngDD, lngMM, lngFF;
+    int           hh, mm, ss;
+    float         latOLD, lngOLD;
+    unsigned long utmOLD;
 };
 
 #endif /* NMEA_H */

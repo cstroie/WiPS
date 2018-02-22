@@ -15,49 +15,77 @@ NMEA::NMEA() {
 void NMEA::init() {
 }
 
-int NMEA::sendGGA(char *buf, size_t len, unsigned long utm, float lat, float lng, int fix, int sat) {
-  // Local buffers
-  char ckbuf[8] = "";
-  // Compute hour, minute and second
-  int hh = (utm % 86400L) / 3600;
-  int mm = (utm % 3600) / 60;
-  int ss =  utm % 60;
+/**
+  Set the coordinates to work with
+
+  @param lat latitude
+  @param lng longitude
+*/
+void NMEA::getCoords(float lat, float lng) {
   // Compute integer and fractional coordinates
-  int latDD = (int)(abs(lat));
-  int latMM = (int)((fabs(lat) - latDD) * 600000);
-  int lngDD = (int)(abs(lng));
-  int lngMM = (int)((fabs(lng) - lngDD) * 600000);
+  if (lat != latOLD) {
+    latDD = (int)(abs(lat));
+    latMM = (int)((fabs(lat) - latDD) * 60 * 10000);
+    latFF = (int)(latMM % 10000);
+    latMM = (int)(latMM / 10000);
+    latOLD = lat;
+  }
+  if (lng != lngOLD) {
+    lngDD = (int)(abs(lng));
+    lngMM = (int)((fabs(lng) - lngDD) * 60 * 10000);
+    lngFF = (int)(lngMM % 10000);
+    lngMM = (int)(lngMM / 10000);
+    lngOLD = lng;
+  }
+}
+
+/**
+  Compute hour, minute and second
+
+  @param utm UNIX time
+*/
+void NMEA::getTime(unsigned long utm) {
+  if (utm != utmOLD) {
+    hh = (utm % 86400L) / 3600;
+    mm = (utm % 3600) / 60;
+    ss =  utm % 60;
+    utmOLD = utm;
+  }
+}
+
+int NMEA::getGGA(char *buf, size_t len, unsigned long utm, float lat, float lng, int fix, int sat) {
+  // Get integer and fractional coordinates
+  getCoords(lat, lng);
+  // Get time
+  getTime(utm);
 
   // GGA
   snprintf_P(buf, len, PSTR("$GPGGA,%02d%02d%02d.0,%02d%02d.%04d,%c,%03d%02d.%04d,%c,%d,%d,1,0,M,0,M,,"),
              hh, mm, ss,
-             latDD, latMM / 10000, latMM % 10000, lat >= 0 ? 'N' : 'S',
-             lngDD, lngMM / 10000, lngMM % 10000, lng >= 0 ? 'E' : 'W',
+             latDD, latMM, latFF, lat >= 0 ? 'N' : 'S',
+             lngDD, lngMM, lngFF, lng >= 0 ? 'E' : 'W',
              fix, sat);
+  // Checksum
+  char ckbuf[8] = "";
   sprintf(ckbuf, "*%02X\r\n", checksum(buf));
   strcat(buf, ckbuf);
   return strlen(buf);
 }
 
-int NMEA::sendRMC(char *buf, size_t len, unsigned long utm, float lat, float lng, int spd, int crs) {
-  // Local buffers
-  char ckbuf[8] = "";
-  // Compute hour, minute and second
-  int hh = (utm % 86400L) / 3600;
-  int mm = (utm % 3600) / 60;
-  int ss =  utm % 60;
-  // Compute integer and fractional coordinates
-  int latDD = (int)(abs(lat));
-  int latMM = (int)((fabs(lat) - latDD) * 600000);
-  int lngDD = (int)(abs(lng));
-  int lngMM = (int)((fabs(lng) - lngDD) * 600000);
+int NMEA::getRMC(char *buf, size_t len, unsigned long utm, float lat, float lng, int spd, int crs) {
+  // Get integer and fractional coordinates
+  getCoords(lat, lng);
+  // Get time
+  getTime(utm);
 
   // RMC
   snprintf_P(buf, len, PSTR("$GPRMC,%02d%02d%02d.0,A,%02d%02d.%04d,%c,%03d%02d.%04d,%c,%03d.0,%03d.0,,,"),
              hh, mm, ss,
-             latDD, latMM / 10000, latMM % 10000, lat >= 0 ? 'N' : 'S',
-             lngDD, lngMM / 10000, lngMM % 10000, lng >= 0 ? 'E' : 'W',
+             latDD, latMM, latFF, lat >= 0 ? 'N' : 'S',
+             lngDD, lngMM, lngFF, lng >= 0 ? 'E' : 'W',
              spd, crs);
+  // Checksum
+  char ckbuf[8] = "";
   sprintf(ckbuf, "*%02X\r\n", checksum(buf));
   strcat(buf, ckbuf);
   return strlen(buf);
