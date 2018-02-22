@@ -154,15 +154,34 @@ void nmeaClientCheck() {
       // Find free or disconnected slots
       if ((not nmeaClient[i]) or
           (not nmeaClient[i].connected())) {
-        if (nmeaClient[i]) nmeaClient[i].stop();
+        if (nmeaClient[i]) {
+          nmeaClient[i].stop();
+          Serial.printf("$PSRVD,%u\r\n", i);
+        }
         nmeaClient[i] = nmeaServer.available();
+        // Report connection
+        char ipbuf[16] = "";
+        charIP(nmeaClient[i].remoteIP(), ipbuf, sizeof(ipbuf), false);
+        Serial.printf("$PSRVC,%u,%s\r\n", i, ipbuf);
+        // Say hello
+        nmeaClient[i].print("$PVERS,");
+        nmeaClient[i].print(NODENAME);
+        nmeaClient[i].print(",");
+        nmeaClient[i].print(VERSION);
+        nmeaClient[i].print(",");
+        nmeaClient[i].print(__DATE__);
+        nmeaClient[i].print("\r\n");
         break;
       }
     }
     // No free or disconnected splots, so reject
     if (i == MAX_NMEA_CLIENTS) {
-      WiFiClient serverClient = nmeaServer.available();
-      serverClient.stop();
+      WiFiClient nmeaRej = nmeaServer.available();
+      // Report connection
+      char ipbuf[16] = "";
+      charIP(nmeaRej.remoteIP(), ipbuf, sizeof(ipbuf), false);
+      Serial.printf("$PSRVR,i,%s\r\n", i, ipbuf);
+      nmeaRej.stop();
     }
   }
 
@@ -201,7 +220,7 @@ void nmeaClientSend(char *sentence, size_t len) {
 */
 void setup() {
   // Init the serial communication
-  Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
+  Serial.begin(9600, SERIAL_8N1, SERIAL_TX_ONLY);
   Serial.printf("$PVERS,%s,%s,%s\r\n", NODENAME, VERSION, __DATE__);
 
   // Initialize the LED_BUILTIN pin as an output
@@ -281,16 +300,17 @@ void setup() {
   //   the fully-qualified domain name is "esp8266.local"
   // - second argument is the IP address to advertise
   //   we send our IP address on the WiFi network
-  if (!MDNS.begin(nodename)) {
-    Serial.println("Error setting up MDNS responder!");
+  if (MDNS.begin(nodename)) {
+    // Add service to MDNS-SD
+    MDNS.addService("GPS", "tcp", nmeaPort);
+    Serial.printf("$PMDNS,GPS,TCP,%u\r\n", nmeaPort);
   }
+  else
+    Serial.print("$PMDNS,ERROR\r\n");
 
   // Start NMEA TCP server
   nmeaServer.begin();
   nmeaServer.setNoDelay(true);
-
-  // Add service to MDNS-SD
-  MDNS.addService("GPS", "tcp", nmeaPort);
 }
 
 /**
@@ -333,6 +353,9 @@ void loop() {
       // Led on
       setLED(6);
       Serial.print(found);
+      Serial.print("\r\n");
+
+      // Geolocate
       int acc = mls.geoLocation();
       // Led off
       setLED(4);
@@ -345,12 +368,11 @@ void loop() {
         // Get the time of the fix
         unsigned long utm = ntp.getSeconds();
         // Report
-        Serial.print(F(",LAT,"));
+        Serial.print(F("$PSCAN,FIX,"));
         Serial.print(mls.current.latitude, 6);
-        Serial.print(",LNG,");
+        Serial.print(",");
         Serial.print(mls.current.longitude, 6);
-        Serial.print(F(",ACC,"));
-        Serial.print(acc);
+        Serial.print(","); Serial.print(acc);
 
         // Check if moving
         bool moving = mls.getMovement() >= (sAcc >> 2);
@@ -359,22 +381,22 @@ void loop() {
           if (sCrs < 0) sCrs = mls.bearing;
           else          sCrs = (((sCrs << 2) - sCrs + mls.bearing) + 2) >> 2;
           // Report
-          Serial.print(F(",DST,")); Serial.print(mls.distance, 2);
-          Serial.print(F(",SPD,")); Serial.print(mls.speed, 2);
-          Serial.print(F(",CRS,")); Serial.print(mls.bearing);
+          Serial.print(","); Serial.print(mls.distance, 2);
+          Serial.print(","); Serial.print(mls.speed, 2);
+          Serial.print(","); Serial.print(mls.bearing);
         }
         Serial.print("\r\n");
 
-        // NMEA
-        char bufGGA[100], bufRMC[100];
-        int lenGGA = nmea.getGGA(bufGGA, 100, utm, mls.current.latitude, mls.current.longitude, 1, found);
-        int lenRMC = nmea.getRMC(bufRMC, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
-        Serial.print(bufGGA);
-        Serial.print(bufRMC);
-
-        // NMEA server
-        nmeaClientSend(bufGGA, lenGGA);
-        nmeaClientSend(bufRMC, lenRMC);
+        // NMEA sentences
+        char bufNMEA[100];
+        int lenNMEA = nmea.getGGA(bufNMEA, 100, utm, mls.current.latitude, mls.current.longitude, 5, found);
+        Serial.print(bufNMEA);
+        nmeaClientSend(bufNMEA, lenNMEA);
+        if (moving) {
+          int lenNMEA = nmea.getRMC(bufNMEA, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
+          Serial.print(bufNMEA);
+          nmeaClientSend(bufNMEA, lenNMEA);
+        }
 
         // Read the Vcc (mV)
         int vcc  = ESP.getVcc();
@@ -438,14 +460,14 @@ void loop() {
         }
       }
       else {
-        Serial.print(F(",ACC,"));
+        Serial.print(F("$PSCAN,NOFIX,"));
         Serial.print(acc);
         Serial.print("\r\n");
       }
     }
     else {
       // No WiFi networks
-      Serial.print(F("NONE\r\n"));
+      Serial.print(F("0\r\n"));
     }
 
     // Led off
