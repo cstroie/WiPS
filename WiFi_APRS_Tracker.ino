@@ -20,17 +20,16 @@ bool PROBE = true;
 #include <ESP8266WiFi.h>
 #include <WiFiManager.h>
 
-// NMEA server
-#define MAX_NMEA_CLIENTS 2
-const int  nmeaPort = 23;
-WiFiServer nmeaServer(nmeaPort);
-WiFiClient nmeaClient[MAX_NMEA_CLIENTS];
-
 // OTA
 #include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
 int otaProgress       = 0;
 int otaPort           = 8266;
+
+// TCP server
+#include "server.h"
+// NMEA server
+TCPServer nmeaServer(23);
 
 // Mozilla Location Services
 #include "mls.h"
@@ -144,78 +143,6 @@ void wifiConnect(int timeout = 300) {
 }
 
 /**
-  Check the connected clients to NMEA server
-*/
-void nmeaClientCheck() {
-  int i;
-  // Check if there are any new clients
-  if (nmeaServer.hasClient()) {
-    for (i = 0; i < MAX_NMEA_CLIENTS; i++) {
-      // Find free or disconnected slots
-      if ((not nmeaClient[i]) or
-          (not nmeaClient[i].connected())) {
-        if (nmeaClient[i]) {
-          nmeaClient[i].stop();
-          Serial.printf("$PSRVD,%u\r\n", i);
-        }
-        nmeaClient[i] = nmeaServer.available();
-        // Report connection
-        char ipbuf[16] = "";
-        charIP(nmeaClient[i].remoteIP(), ipbuf, sizeof(ipbuf), false);
-        Serial.printf("$PSRVC,%u,%s\r\n", i, ipbuf);
-        // Say hello
-        nmeaClient[i].print("$PVERS,");
-        nmeaClient[i].print(NODENAME);
-        nmeaClient[i].print(",");
-        nmeaClient[i].print(VERSION);
-        nmeaClient[i].print(",");
-        nmeaClient[i].print(__DATE__);
-        nmeaClient[i].print("\r\n");
-        break;
-      }
-    }
-    // No free or disconnected splots, so reject
-    if (i == MAX_NMEA_CLIENTS) {
-      WiFiClient nmeaRej = nmeaServer.available();
-      // Report connection
-      char ipbuf[16] = "";
-      charIP(nmeaRej.remoteIP(), ipbuf, sizeof(ipbuf), false);
-      Serial.printf("$PSRVR,i,%s\r\n", i, ipbuf);
-      nmeaRej.stop();
-    }
-  }
-
-  // Flush client data
-  for (i = 0; i < MAX_NMEA_CLIENTS; i++) {
-    if (nmeaClient[i] and nmeaClient[i].connected()) {
-      if (nmeaClient[i].available()) {
-        // Flush the data
-        nmeaClient[i].flush();
-      }
-    }
-  }
-}
-
-/**
-  Send the NMEA sentence to all connected clients
-
-  @param sentence the NMEA sentence
-*/
-void nmeaClientSend(char *sentence, size_t len) {
-  // Send the NMEA data to all connected
-  for (int i = 0; i < MAX_NMEA_CLIENTS; i++) {
-    if (nmeaClient[i] && nmeaClient[i].connected()) {
-      nmeaClient[i].write(sentence, len);
-      yield();
-    }
-    else {
-      // Stop the disconnected client
-      if (nmeaClient[i]) nmeaClient[i].stop();
-    }
-  }
-}
-
-/**
   Main Arduino setup function
 */
 void setup() {
@@ -300,17 +227,11 @@ void setup() {
   //   the fully-qualified domain name is "esp8266.local"
   // - second argument is the IP address to advertise
   //   we send our IP address on the WiFi network
-  if (MDNS.begin(nodename)) {
-    // Add service to MDNS-SD
-    MDNS.addService("GPS", "tcp", nmeaPort);
-    Serial.printf("$PMDNS,GPS,TCP,%u\r\n", nmeaPort);
-  }
-  else
+  if (!MDNS.begin(nodename))
     Serial.print("$PMDNS,ERROR\r\n");
 
   // Start NMEA TCP server
-  nmeaServer.begin();
-  nmeaServer.setNoDelay(true);
+  nmeaServer.init("NMEA");
 }
 
 /**
@@ -322,7 +243,7 @@ void loop() {
   yield();
 
   // Handle NMEA clients
-  nmeaClientCheck();
+  nmeaServer.check(NODENAME);
 
   // Uptime
   unsigned long now = millis() / 1000;
@@ -391,10 +312,10 @@ void loop() {
         char bufNMEA[100];
         int lenNMEA = nmea.getGGA(bufNMEA, 100, utm, mls.current.latitude, mls.current.longitude, 5, found);
         Serial.print(bufNMEA);
-        nmeaClientSend(bufNMEA, lenNMEA);
+        nmeaServer.sendAll(bufNMEA, lenNMEA);
         lenNMEA = nmea.getRMC(bufNMEA, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
         Serial.print(bufNMEA);
-        nmeaClientSend(bufNMEA, lenNMEA);
+        nmeaServer.sendAll(bufNMEA, lenNMEA);
 
         // Read the Vcc (mV)
         int vcc  = ESP.getVcc();
