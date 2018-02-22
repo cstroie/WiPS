@@ -392,11 +392,9 @@ void loop() {
         int lenNMEA = nmea.getGGA(bufNMEA, 100, utm, mls.current.latitude, mls.current.longitude, 5, found);
         Serial.print(bufNMEA);
         nmeaClientSend(bufNMEA, lenNMEA);
-        if (moving) {
-          int lenNMEA = nmea.getRMC(bufNMEA, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
-          Serial.print(bufNMEA);
-          nmeaClientSend(bufNMEA, lenNMEA);
-        }
+        lenNMEA = nmea.getRMC(bufNMEA, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
+        Serial.print(bufNMEA);
+        nmeaClientSend(bufNMEA, lenNMEA);
 
         // Read the Vcc (mV)
         int vcc  = ESP.getVcc();
