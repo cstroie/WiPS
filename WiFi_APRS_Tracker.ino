@@ -30,6 +30,8 @@ int otaPort           = 8266;
 #include "server.h"
 // NMEA server
 TCPServer nmeaServer(23);
+// GPSD server
+TCPServer gpsdServer(2947);
 
 // Mozilla Location Services
 #include "mls.h"
@@ -232,6 +234,8 @@ void setup() {
 
   // Start NMEA TCP server
   nmeaServer.init("NMEA");
+  // Start GPSD TCP server
+  gpsdServer.init("GPSD");
 }
 
 /**
@@ -242,8 +246,9 @@ void loop() {
   ArduinoOTA.handle();
   yield();
 
-  // Handle NMEA clients
+  // Handle NMEA and GPSD clients
   nmeaServer.check(NODENAME);
+  gpsdServer.check("{\"class\":\"VERSION\",\"release\":\"3.2\"}");
 
   // Uptime
   unsigned long now = millis() / 1000;
@@ -309,13 +314,28 @@ void loop() {
         Serial.print("\r\n");
 
         // NMEA sentences
-        char bufNMEA[100];
-        int lenNMEA = nmea.getGGA(bufNMEA, 100, utm, mls.current.latitude, mls.current.longitude, 5, found);
-        Serial.print(bufNMEA);
-        nmeaServer.sendAll(bufNMEA, lenNMEA);
-        lenNMEA = nmea.getRMC(bufNMEA, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
-        Serial.print(bufNMEA);
-        nmeaServer.sendAll(bufNMEA, lenNMEA);
+        char bufServer[200];
+        int lenNMEA = nmea.getGGA(bufServer, 100, utm, mls.current.latitude, mls.current.longitude, 5, found);
+        Serial.print(bufServer);
+        nmeaServer.sendAll(bufServer, lenNMEA);
+        lenNMEA = nmea.getRMC(bufServer, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
+        Serial.print(bufServer);
+        nmeaServer.sendAll(bufServer, lenNMEA);
+
+        // GPSD
+        // {"class":"TPV","tag":"GGA","device":"/dev/ttyUSB0","mode":3,"lat":44.433253333,"lon":26.126990000,"alt":0.000}
+        // {"class":"TPV","tag":"RMC","device":"/dev/ttyUSB0","mode":3,"lat":44.433203333,"lon":26.126956667,"alt":0.000,"track":0.0000,"speed":0.000}
+        char coord[16] = "";
+        strcpy(bufServer, "{\"class\":\"TPV\",\"tag\":\"GGA\",\"device\":\"wifitrk\",\"mode\":3,\"lat\":");
+        dtostrf(mls.current.latitude, 12, 9, coord);
+        strncat(bufServer, coord, 16);
+        strcat(bufServer, ",\"lon\":");
+        dtostrf(mls.current.longitude, 12, 9, coord);
+        strncat(bufServer, coord, 16);
+        strcat(bufServer, ",\"alt\":0.000}\r\n");
+        gpsdServer.sendAll(bufServer, strlen(bufServer));
+        Serial.print("$PGPSD,");
+        Serial.print(bufServer);
 
         // Read the Vcc (mV)
         int vcc  = ESP.getVcc();
