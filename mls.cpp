@@ -221,27 +221,16 @@ int MLS::geoLocation() {
 /**
   Get the navigation distance, bearing and speed using the equirectangular approximation
 */
-// Haversine
-// var φ1 = lat1.toRadians(), φ2 = lat2.toRadians(), Δλ = (lon2-lon1).toRadians(), R = 6371e3; // gives d in metres
-// var d = Math.acos( Math.sin(φ1)*Math.sin(φ2) + Math.cos(φ1)*Math.cos(φ2) * Math.cos(Δλ) ) * R;
 long MLS::getMovement() {
   // Check if the geolocation seems valid
   if (current.valid and previous.valid) {
-    // Earth radius in meters
-    float R = 6371000;
-    // Equirectangular approximation
-    float x = DEG_TO_RAD * (current.longitude - previous.longitude) * cos(DEG_TO_RAD * (current.latitude + previous.latitude) / 2);
-    float y = DEG_TO_RAD * (current.latitude  - previous.latitude);
     // Compute the distance and speed
-    distance = sqrt(x * x + y * y) * R;
+    distance = getDistance(previous.latitude, previous.longitude, current.latitude, current.longitude);
     speed = 1000 * distance / (current.uptm - previous.uptm);
     knots = lround(speed * 1.94384449);
     // If moving, get the bearing
-    if (knots > 0) {
-      float course = RAD_TO_DEG * atan2(sin(current.longitude - previous.longitude) * cos(current.latitude),
-                                        cos(previous.latitude) * sin(current.latitude) - sin(previous.latitude) * cos(current.latitude) * cos(current.longitude - previous.longitude));
-      bearing = (int)(course + 360) % 360;
-    }
+    if (knots > 0)
+      bearing = getBearing(previous.latitude, previous.longitude, current.latitude, current.longitude);
   }
   else {
     // Invalid coordinates, store zero distance and speed
@@ -251,4 +240,59 @@ long MLS::getMovement() {
   }
   // Return the distance
   return (long)distance;
+}
+
+/**
+  Returns distance in meters between two positions, both specified
+  as signed decimal-degrees latitude and longitude. Uses great-circle
+  distance computation for hypothetical sphere of radius 6372795 meters.
+  Because Earth is no exact sphere, rounding errors may be up to 0.5%.
+  Courtesy of Maarten Lamers
+*/
+float MLS::getDistance(float lat1, float long1, float lat2, float long2) {
+  float delta = radians(long1 - long2);
+  float sdlong = sin(delta);
+  float cdlong = cos(delta);
+  lat1 = radians(lat1);
+  lat2 = radians(lat2);
+  float slat1 = sin(lat1);
+  float clat1 = cos(lat1);
+  float slat2 = sin(lat2);
+  float clat2 = cos(lat2);
+  delta = (clat1 * slat2) - (slat1 * clat2 * cdlong);
+  delta = sq(delta);
+  delta += sq(clat2 * sdlong);
+  delta = sqrt(delta);
+  float denom = (slat1 * slat2) + (clat1 * clat2 * cdlong);
+  delta = atan2(delta, denom);
+  return delta * 6372795;
+}
+/**
+  Returns course in degrees (North=0, West=270) from position 1 to position 2,
+  both specified as signed decimal-degrees latitude and longitude.
+  Because Earth is no exact sphere, calculated course may be off by a tiny fraction.
+  Courtesy of Maarten Lamers
+*/
+float MLS::getBearing(float lat1, float long1, float lat2, float long2) {
+  float dlon = radians(long2 - long1);
+  lat1 = radians(lat1);
+  lat2 = radians(lat2);
+  float a1 = sin(dlon) * cos(lat2);
+  float a2 = sin(lat1) * cos(lat2) * cos(dlon);
+  a2 = cos(lat1) * sin(lat2) - a2;
+  a2 = atan2(a1, a2);
+  if (a2 < 0.0)
+    a2 += TWO_PI;
+  return degrees(a2);
+}
+
+/**
+  Get the direction as cardinal point
+*/
+const char* MLS::getCardinal(float course) {
+  static const char* directions[] = {"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                                     "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
+                                    };
+  int direction = (int)((course + 11.25f) / 22.5f);
+  return directions[direction % 16];
 }

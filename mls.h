@@ -40,6 +40,9 @@ class MLS {
     int   wifiScan(bool sort = false);
     int   geoLocation();
     long  getMovement();
+    float getDistance(float lat1, float long1, float lat2, float long2);
+    float getBearing(float lat1, float long1, float lat2, float long2);
+    const char *getCardinal(float course);
     geo_t current;
     geo_t previous;
     float distance;
