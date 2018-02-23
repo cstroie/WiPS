@@ -17,6 +17,9 @@ class NMEA {
     void          init();
     int           getGGA(char *buf, size_t len, unsigned long utm, float lat, float lng, int fix, int sat);
     int           getRMC(char *buf, size_t len, unsigned long utm, float lat, float lng, int spd, int crs);
+    int           getGLL(char *buf, size_t len, unsigned long utm, float lat, float lng);
+    int           getVTG(char *buf, size_t len, int crs, int knots, int kmh);
+    int           getZDA(char *buf, size_t len, unsigned long utm);
     int           getWelcome(const char* name, const char* vers);
     char          welcome[80];
   private:
@@ -24,7 +27,7 @@ class NMEA {
     void          getCoords(float lat, float lng);
     void          getTime(unsigned long utm);
     int           latDD, latMM, latFF, lngDD, lngMM, lngFF;
-    int           hh, mm, ss;
+    int           yy, ll, dd, hh, mm, ss;
     float         latOLD, lngOLD;
     unsigned long utmOLD;
 };
