@@ -18,6 +18,7 @@ bool PROBE = true;
 
 // WiFi
 #include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
 #include <WiFiManager.h>
 
 // OTA
@@ -32,6 +33,11 @@ int otaPort           = 8266;
 TCPServer nmeaServer(10110);  // NMEA-0183 Navigational Data
 // GPSD server
 TCPServer gpsdServer(2947);   // GPS Daemon request/response protocol
+
+// UDP Broadcast
+WiFiUDP bcastUDP;
+IPAddress bcastIP(0, 0, 0, 0);
+const int bcastPort = 10111;
 
 // Mozilla Location Services
 #include "mls.h"
@@ -145,6 +151,15 @@ void wifiConnect(int timeout = 300) {
 }
 
 /**
+  UDP broadcast
+*/
+void broadcast(char *buf, size_t len) {
+  bcastUDP.beginPacket(bcastIP, bcastPort);
+  bcastUDP.write(buf, len);
+  bcastUDP.endPacket();
+}
+
+/**
   Main Arduino setup function
 */
 void setup() {
@@ -238,6 +253,13 @@ void setup() {
   nmeaServer.init("NMEA");
   // Start GPSD TCP server
   gpsdServer.init("GPSD");
+
+  // Compute the broadcast IP
+  IPAddress lip = WiFi.localIP();
+  IPAddress mip = WiFi.subnetMask();
+  for (int i = 0; i < 4; i++)
+    bcastIP[i] = (lip[i] & mip[i]) | (0xFF ^ mip[i]);
+  Serial.printf("$PBCST,%u,%d.%d.%d.%d\r\n", bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
 }
 
 /**
@@ -322,10 +344,12 @@ void loop() {
         lenServer = nmea.getGGA(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, 1, found);
         Serial.print(bufServer);
         if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
+        broadcast(bufServer, lenServer);
         // RMC
         lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
         Serial.print(bufServer);
         if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
+        broadcast(bufServer, lenServer);
         // GLL
         //lenServer = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
         //Serial.print(bufServer);
