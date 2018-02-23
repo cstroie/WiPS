@@ -23,7 +23,7 @@ class TCPServer: public WiFiServer {
   public:
     TCPServer(uint16_t serverPort);
     void init(const char *serverName);
-    void check(const char *welcome);
+    int  handle(const char *welcome);
     void sendAll(char *buf, size_t len);
   private:
     int  port;

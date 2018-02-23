@@ -25,7 +25,7 @@ void TCPServer::init(const char *serverName) {
 /**
   Check the connected clients to NMEA server
 */
-void TCPServer::check(const char *welcome) {
+int TCPServer::handle(const char *welcome) {
   int i;
   // Check if there are any new clients
   if (hasClient()) {
@@ -56,15 +56,18 @@ void TCPServer::check(const char *welcome) {
     }
   }
 
-  // Flush client data
+  int count = 0;
+  // Flush client data while counting them
   for (i = 0; i < MAX_CLIENTS; i++) {
     if (TCPClient[i] and TCPClient[i].connected()) {
       if (TCPClient[i].available()) {
+        count++;
         // Flush the data
         TCPClient[i].flush();
       }
     }
   }
+  return count;
 }
 
 /**
