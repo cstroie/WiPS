@@ -29,9 +29,9 @@ int otaPort           = 8266;
 // TCP server
 #include "server.h"
 // NMEA server
-TCPServer nmeaServer(23);
+TCPServer nmeaServer(10110);  // NMEA-0183 Navigational Data
 // GPSD server
-TCPServer gpsdServer(2947);
+TCPServer gpsdServer(2947);   // GPS Daemon request/response protocol
 
 // Mozilla Location Services
 #include "mls.h"
@@ -249,8 +249,8 @@ void loop() {
   yield();
 
   // Handle NMEA and GPSD clients
-  static int nmeaClients = nmeaServer.handle(nmea.welcome);
-  static int gpsdClients = gpsdServer.handle("{\"class\":\"VERSION\",\"release\":\"3.2\"}\r\n");
+  nmeaServer.check(nmea.welcome); //
+  gpsdServer.check("{\"class\":\"VERSION\",\"release\":\"3.2\"}\r\n"); //
 
   // Uptime
   unsigned long now = millis() / 1000;
@@ -321,28 +321,28 @@ void loop() {
         // GGA
         lenServer = nmea.getGGA(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, 1, found);
         Serial.print(bufServer);
-        if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
+        if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
         // RMC
         lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
         Serial.print(bufServer);
-        if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
+        if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
         // GLL
-        lenServer = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
-        Serial.print(bufServer);
-        if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
+        //lenServer = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
+        //Serial.print(bufServer);
+        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
         // VTG
-        lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
-        Serial.print(bufServer);
-        if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
+        //lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
+        //Serial.print(bufServer);
+        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
         // ZDA
-        lenServer = nmea.getZDA(bufServer, 200, utm);
-        Serial.print(bufServer);
-        if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
+        //lenServer = nmea.getZDA(bufServer, 200, utm);
+        //Serial.print(bufServer);
+        //if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
 
         // GPSD
         // {"class":"TPV","tag":"GGA","device":"/dev/ttyUSB0","mode":3,"lat":44.433253333,"lon":26.126990000,"alt":0.000}
         // {"class":"TPV","tag":"RMC","device":"/dev/ttyUSB0","mode":3,"lat":44.433203333,"lon":26.126956667,"alt":0.000,"track":0.0000,"speed":0.000}
-        if (gpsdClients) {
+        if (gpsdServer.clients) {
           char coord[16] = "";
           strcpy(bufServer, "{\"class\":\"TPV\",\"tag\":\"GGA\",\"device\":\"wifitrk\",\"mode\":3,\"lat\":");
           dtostrf(mls.current.latitude, 12, 9, coord);
