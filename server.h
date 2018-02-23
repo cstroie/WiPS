@@ -9,7 +9,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#define MAX_CLIENTS 2
+#define MAX_CLIENTS 4
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
@@ -23,8 +23,9 @@ class TCPServer: public WiFiServer {
   public:
     TCPServer(uint16_t serverPort);
     void init(const char *serverName);
-    int  handle(const char *welcome);
+    int  check(const char *welcome);
     void sendAll(char *buf, size_t len);
+    int  clients;
   private:
     int  port;
     WiFiClient TCPClient[MAX_CLIENTS];

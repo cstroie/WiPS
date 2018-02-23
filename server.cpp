@@ -14,18 +14,18 @@ TCPServer::TCPServer(uint16_t serverPort) : WiFiServer(serverPort) {
 }
 
 void TCPServer::init(const char *serverName) {
+  // Configure mDNS
+  MDNS.addService(serverName, "tcp", port);
+  Serial.printf("$PMDNS,%s,%u,TCP,%u\r\n", serverName, MAX_CLIENTS, port);
   // Start the TCP server
   begin();
   setNoDelay(true);
-  // Configure mDNS
-  MDNS.addService(serverName, "tcp", port);
-  Serial.printf("$PMDNS,%s,TCP,%u\r\n", serverName, port);
 }
 
 /**
   Check the connected clients to NMEA server
 */
-int TCPServer::handle(const char *welcome) {
+int TCPServer::check(const char *welcome) {
   int i;
   // Check if there are any new clients
   if (hasClient()) {
@@ -35,12 +35,12 @@ int TCPServer::handle(const char *welcome) {
           (not TCPClient[i].connected())) {
         if (TCPClient[i]) {
           TCPClient[i].stop();
-          Serial.printf("$PSRVD,%u\r\n", i);
+          Serial.printf("$PSRVD,%u,%u,%u\r\n", port, clients, i);
         }
         TCPClient[i] = available();
         // Report connection
         IPAddress ip = TCPClient[i].remoteIP();
-        Serial.printf("$PSRVC,%u,%d.%d.%d.%d\r\n", i, ip[0], ip[1], ip[2], ip[3]);
+        Serial.printf("$PSRVC,%u,%u,%u,%d.%d.%d.%d\r\n", port, clients + 1, i, ip[0], ip[1], ip[2], ip[3]);
         // Welcome
         TCPClient[i].print(welcome);
         break;
@@ -51,23 +51,23 @@ int TCPServer::handle(const char *welcome) {
       WiFiClient rejected = available();
       // Report connection
       IPAddress ip = rejected.remoteIP();
-      Serial.printf("$PSRVR,%u,%d.%d.%d.%d\r\n", i, ip[0], ip[1], ip[2], ip[3]);
+      Serial.printf("$PSRVR,%u,%u,%u,%d.%d.%d.%d\r\n", port, clients, i, ip[0], ip[1], ip[2], ip[3]);
       rejected.stop();
     }
   }
 
-  int count = 0;
+  clients = 0;
   // Flush client data while counting them
   for (i = 0; i < MAX_CLIENTS; i++) {
     if (TCPClient[i] and TCPClient[i].connected()) {
+      clients++;
       if (TCPClient[i].available()) {
-        count++;
         // Flush the data
         TCPClient[i].flush();
       }
     }
   }
-  return count;
+  return clients;
 }
 
 /**
