@@ -16,6 +16,24 @@ void NMEA::init() {
 }
 
 /**
+  Compose the welcome message
+*/
+int NMEA::getWelcome(const char* name, const char* vers) {
+  strcat(welcome, "$PVERS");
+  strcat(welcome, ",");
+  strcat(welcome, name);
+  strcat(welcome, ",");
+  strcat(welcome, vers);
+  strcat(welcome, ",");
+  strcat(welcome, __DATE__);
+  // Checksum
+  char ckbuf[8] = "";
+  sprintf(ckbuf, "*%02X\r\n", checksum(welcome));
+  strcat(welcome, ckbuf);
+  return strlen(welcome);
+}
+
+/**
   Set the coordinates to work with
 
   @param lat latitude
@@ -53,6 +71,9 @@ void NMEA::getTime(unsigned long utm) {
   }
 }
 
+/*
+  Compose the GGA sentence
+*/
 int NMEA::getGGA(char *buf, size_t len, unsigned long utm, float lat, float lng, int fix, int sat) {
   // Get integer and fractional coordinates
   getCoords(lat, lng);
@@ -72,6 +93,9 @@ int NMEA::getGGA(char *buf, size_t len, unsigned long utm, float lat, float lng,
   return strlen(buf);
 }
 
+/*
+  Compose the RMC sentence
+*/
 int NMEA::getRMC(char *buf, size_t len, unsigned long utm, float lat, float lng, int spd, int crs) {
   // Get integer and fractional coordinates
   getCoords(lat, lng);

@@ -54,7 +54,7 @@ ADC_MODE(ADC_VCC);
 
 // Timings
 unsigned long geoNextTime = 0;    // Next time to geolocate
-unsigned long geoDelay    = 30;   // Delay between geolocating
+unsigned long geoDelay    = 15;   // Delay between geolocating
 unsigned long rpNextTime  = 0;    // Next time to report
 unsigned long rpDelay     = 30;   // Delay between reporting
 unsigned long rpDelayStep = 30;   // Step to increase the delay between reporting
@@ -150,7 +150,9 @@ void wifiConnect(int timeout = 300) {
 void setup() {
   // Init the serial communication
   Serial.begin(9600, SERIAL_8N1, SERIAL_TX_ONLY);
-  Serial.printf("$PVERS,%s,%s,%s\r\n", NODENAME, VERSION, __DATE__);
+  // Compose the welcome message
+  nmea.getWelcome(NODENAME, VERSION);
+  Serial.print(nmea.welcome);
 
   // Initialize the LED_BUILTIN pin as an output
   pinMode(LED_BUILTIN, OUTPUT);
@@ -247,8 +249,8 @@ void loop() {
   yield();
 
   // Handle NMEA and GPSD clients
-  nmeaServer.check(NODENAME);
-  gpsdServer.check("{\"class\":\"VERSION\",\"release\":\"3.2\"}");
+  nmeaServer.check(nmea.welcome);
+  gpsdServer.check("{\"class\":\"VERSION\",\"release\":\"3.2\"}\r\n");
 
   // Uptime
   unsigned long now = millis() / 1000;
@@ -315,10 +317,10 @@ void loop() {
 
         // NMEA sentences
         char bufServer[200];
-        int lenNMEA = nmea.getGGA(bufServer, 100, utm, mls.current.latitude, mls.current.longitude, 5, found);
+        int lenNMEA = nmea.getGGA(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, 5, found);
         Serial.print(bufServer);
         nmeaServer.sendAll(bufServer, lenNMEA);
-        lenNMEA = nmea.getRMC(bufServer, 100, utm, mls.current.latitude, mls.current.longitude, mls.knots, mls.bearing);
+        lenNMEA = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
         Serial.print(bufServer);
         nmeaServer.sendAll(bufServer, lenNMEA);
 

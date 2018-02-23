@@ -17,6 +17,8 @@ class NMEA {
     void          init();
     int           getGGA(char *buf, size_t len, unsigned long utm, float lat, float lng, int fix, int sat);
     int           getRMC(char *buf, size_t len, unsigned long utm, float lat, float lng, int spd, int crs);
+    int           getWelcome(const char* name, const char* vers);
+    char          welcome[80];
   private:
     int           checksum(const char *s);
     void          getCoords(float lat, float lng);

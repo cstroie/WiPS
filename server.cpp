@@ -42,7 +42,7 @@ void TCPServer::check(const char *welcome) {
         IPAddress ip = TCPClient[i].remoteIP();
         Serial.printf("$PSRVC,%u,%d.%d.%d.%d\r\n", i, ip[0], ip[1], ip[2], ip[3]);
         // Welcome
-        TCPClient[i].println(welcome);
+        TCPClient[i].print(welcome);
         break;
       }
     }
