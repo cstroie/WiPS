@@ -317,26 +317,27 @@ void loop() {
 
         // Compose and send the NMEA sentences
         char bufServer[200];
+        int lenServer;
         // GGA
-        int lenNMEA = nmea.getGGA(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, 1, found);
+        lenServer = nmea.getGGA(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, 1, found);
         Serial.print(bufServer);
-        if (nmeaClients) nmeaServer.sendAll(bufServer, lenNMEA);
+        if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
         // RMC
-        lenNMEA = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
+        lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
         Serial.print(bufServer);
-        if (nmeaClients) nmeaServer.sendAll(bufServer, lenNMEA);
+        if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
         // GLL
-        lenNMEA = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
+        lenServer = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
         Serial.print(bufServer);
-        if (nmeaClients) nmeaServer.sendAll(bufServer, lenNMEA);
+        if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
         // VTG
-        lenNMEA = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
+        lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
         Serial.print(bufServer);
-        if (nmeaClients) nmeaServer.sendAll(bufServer, lenNMEA);
+        if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
         // ZDA
-        lenNMEA = nmea.getZDA(bufServer, 200, utm);
+        lenServer = nmea.getZDA(bufServer, 200, utm);
         Serial.print(bufServer);
-        if (nmeaClients) nmeaServer.sendAll(bufServer, lenNMEA);
+        if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
 
         // GPSD
         // {"class":"TPV","tag":"GGA","device":"/dev/ttyUSB0","mode":3,"lat":44.433253333,"lon":26.126990000,"alt":0.000}
