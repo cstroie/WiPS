@@ -37,6 +37,7 @@ TCPServer gpsdServer(2947);   // GPS Daemon request/response protocol
 // UDP Broadcast
 WiFiUDP bcastUDP;
 IPAddress bcastIP(0, 0, 0, 0);
+IPAddress localIP(0, 0, 0, 0);
 const int bcastPort = 10111;
 
 // Mozilla Location Services
@@ -154,7 +155,7 @@ void wifiConnect(int timeout = 300) {
   UDP broadcast
 */
 void broadcast(char *buf, size_t len) {
-  bcastUDP.beginPacket(bcastIP, bcastPort);
+  bcastUDP.beginPacketMulticast(bcastIP, bcastPort, localIP);
   bcastUDP.write(buf, len);
   bcastUDP.endPacket();
 }
@@ -257,8 +258,10 @@ void setup() {
   // Compute the broadcast IP
   IPAddress lip = WiFi.localIP();
   IPAddress mip = WiFi.subnetMask();
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < 4; i++) {
     bcastIP[i] = (lip[i] & mip[i]) | (0xFF ^ mip[i]);
+    localIP[i] = lip[i];
+  }
   Serial.printf("$PBCST,%u,%d.%d.%d.%d\r\n", bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
 }
 
