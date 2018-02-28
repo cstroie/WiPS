@@ -251,9 +251,9 @@ void setup() {
     Serial.print("$PMDNS,ERROR\r\n");
 
   // Start NMEA TCP server
-  nmeaServer.init("NMEA", nmea.welcome);
+  nmeaServer.init("nmea-0183", nmea.welcome);
   // Start GPSD TCP server
-  gpsdServer.init("GPSD", "{\"class\":\"VERSION\",\"release\":\"3.2\"}\r\n");
+  gpsdServer.init("gpsd", "{\"class\":\"VERSION\",\"release\":\"3.2\"}\r\n");
 
   // Compute the broadcast IP
   IPAddress lip = WiFi.localIP();
