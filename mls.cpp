@@ -26,7 +26,7 @@ int MLS::wifiScan(bool sort) {
   memcpy(apBSSID, WiFi.BSSID(), WL_MAC_ADDR_LENGTH);
   // Scan
   netCount = WiFi.scanNetworks();
-  // Keep the SSID, BSSID, RSSI and ENC
+  // Keep only BSSID and RSSI
   int scanCount = 0, storeCount = 0;
   // Only if there are any networks found
   if (netCount > 0) {
@@ -34,10 +34,8 @@ int MLS::wifiScan(bool sort) {
     while (storeCount < MAXNETS and scanCount < netCount) {
       // Exclude the AP BSSID from the list
       if (memcmp(WiFi.BSSID(scanCount), apBSSID, WL_MAC_ADDR_LENGTH) != 0) {
-        memcpy(nets[storeCount].ssid, WiFi.SSID(scanCount), WL_SSID_MAX_LENGTH);
         memcpy(nets[storeCount].bssid, WiFi.BSSID(scanCount), WL_MAC_ADDR_LENGTH);
         nets[storeCount].rssi = (int8_t)(WiFi.RSSI(scanCount));
-        nets[storeCount].enc = (int8_t)(WiFi.encryptionType(scanCount));
         storeCount++;
       }
       scanCount++;
@@ -52,41 +50,17 @@ int MLS::wifiScan(bool sort) {
     BSSID_RSSI tmp;
     for (size_t i = 1; i < netCount; i++) {
       for (size_t j = i; j > 0 && (nets[j - 1].rssi < nets[j].rssi); j--) {
-        memcpy(tmp.ssid, nets[j - 1].ssid, WL_SSID_MAX_LENGTH);
         memcpy(tmp.bssid, nets[j - 1].bssid, WL_MAC_ADDR_LENGTH);
         tmp.rssi = nets[j - 1].rssi;
-        tmp.enc = nets[j - 1].enc;
         memcpy(nets[j - 1].bssid, nets[j].bssid, WL_MAC_ADDR_LENGTH);
         nets[j - 1].rssi = nets[j].rssi;
-        memcpy(nets[j].ssid, tmp.ssid, WL_SSID_MAX_LENGTH);
         memcpy(nets[j].bssid, tmp.bssid, WL_MAC_ADDR_LENGTH);
         nets[j].rssi = tmp.rssi;
-        nets[j].enc = tmp.enc;
       }
     }
   }
   // Return the number of networks found
   return netCount;
-}
-
-/**
-  Get the strongest open WiFi SSID
-*/
-int MLS::wifiGetOpen(char* buf, size_t len) {
-  // Keep buffer length safe
-  if (len > WL_SSID_MAX_LENGTH) len = WL_SSID_MAX_LENGTH;
-  // Scan and sort the results
-  int found = wifiScan(true);
-  if (found > 0) {
-    for (size_t i = 1; i < found; i++) {
-      if (nets[i].enc == ENC_TYPE_NONE) {
-        strncpy(buf, nets[i].ssid, len);
-        buf[len-1] = '\0';
-        return strlen(buf);
-      }
-    }
-  }
-  return 0;
 }
 
 /**

@@ -38,7 +38,6 @@ class MLS {
     MLS();
     void  init();
     int   wifiScan(bool sort = false);
-    int   wifiGetOpen(char* buf, size_t len);
     int   geoLocation();
     long  getMovement();
     float getDistance(float lat1, float long1, float lat2, float long2);
@@ -52,10 +51,8 @@ class MLS {
     int   bearing;
   private:
     struct  BSSID_RSSI {
-      char    ssid[WL_SSID_MAX_LENGTH];
       uint8_t bssid[WL_MAC_ADDR_LENGTH];
       int8_t  rssi;
-      uint8_t enc;
     } nets[MAXNETS];
     int           netCount;
 };
