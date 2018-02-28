@@ -14,10 +14,7 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
-
 #include "version.h"
-
-
 
 class TCPServer: public WiFiServer {
   public:
@@ -28,6 +25,7 @@ class TCPServer: public WiFiServer {
     int  clients;
   private:
     int  port;
+    char name[16];
     WiFiClient TCPClient[MAX_CLIENTS];
 };
 
