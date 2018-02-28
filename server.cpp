@@ -18,10 +18,13 @@ TCPServer::TCPServer(uint16_t serverPort) : WiFiServer(serverPort) {
   
   @param serverName the name the server is known as
 */
-void TCPServer::init(const char *serverName) {
+void TCPServer::init(const char *serverName, const char *welcome) {
   // Keep the server name
   strncpy(name, serverName, sizeof(name));
   name[sizeof(name) - 1] = '\0';
+  // Keep the welcome message
+  strncpy(wlcm, serverName, sizeof(wlcm));
+  wlcm[sizeof(wlcm) - 1] = '\0';
   // Configure mDNS
   MDNS.addService(name, "tcp", port);
   Serial.printf("$PMDNS,%s,%u,TCP,%u\r\n", name, MAX_CLIENTS, port);
@@ -35,7 +38,7 @@ void TCPServer::init(const char *serverName) {
   
   @param welcome the welcome message to send to the new clients
 */
-int TCPServer::check(const char *welcome) {
+int TCPServer::check() {
   int i;
   // Check if there are any new clients
   if (hasClient()) {
@@ -55,7 +58,7 @@ int TCPServer::check(const char *welcome) {
         IPAddress ip = TCPClient[i].remoteIP();
         Serial.printf("$PSRVC,%s,%u,%u,%d.%d.%d.%d\r\n", name, clients, i, ip[0], ip[1], ip[2], ip[3]);
         // Send the welcome message
-        TCPClient[i].print(welcome);
+        TCPClient[i].print(wlcm);
         break;
       }
     }
