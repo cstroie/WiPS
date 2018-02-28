@@ -52,8 +52,8 @@ class MLS {
     int   bearing;
   private:
     struct  BSSID_RSSI {
-      char    ssid[32];
-      uint8_t bssid[6];
+      char    ssid[WL_SSID_MAX_LENGTH];
+      uint8_t bssid[WL_MAC_ADDR_LENGTH];
       int8_t  rssi;
       uint8_t enc;
     } nets[MAXNETS];
