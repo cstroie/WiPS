@@ -19,14 +19,14 @@
 class TCPServer: public WiFiServer {
   public:
     TCPServer(uint16_t serverPort);
-    void init(const char *serverName);
-    int  check(const char *welcome);
+    void init(const char *serverName, const char *welcome);
+    int  check();
     void sendAll(char *buf);
     int  clients;
   private:
     int  port;
     char name[16];
-    char wlcm[1000;
+    char wlcm[100];
     WiFiClient TCPClient[MAX_CLIENTS];
 };
 
