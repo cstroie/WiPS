@@ -288,10 +288,10 @@ int MLS::getBearing(float lat1, float long1, float lat2, float long2) {
 /**
   Get the direction as cardinal point
 */
-const char* MLS::getCardinal(float course) {
+const char* MLS::getCardinal(int course) {
   static const char* directions[] = {"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
                                      "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
                                     };
-  int direction = (int)((course + 11.25f) / 22.5f);
+  int direction = (int)(((float)course + 11.25f) / 22.5f);
   return directions[direction % 16];
 }
