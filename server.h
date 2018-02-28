@@ -21,7 +21,7 @@ class TCPServer: public WiFiServer {
     TCPServer(uint16_t serverPort);
     void init(const char *serverName);
     int  check(const char *welcome);
-    void sendAll(char *buf, size_t len);
+    void sendAll(char *buf);
     int  clients;
   private:
     int  port;
