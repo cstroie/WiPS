@@ -258,6 +258,9 @@ void setup() {
   // Compute the broadcast IP
   IPAddress lip = WiFi.localIP();
   IPAddress mip = WiFi.subnetMask();
+  // TODO check this
+  // IPAddress broadcastIp;
+  // broadcastIp = ~WiFi.subnetMask() | WiFi.gatewayIP();
   for (int i = 0; i < 4; i++) {
     bcastIP[i] = (lip[i] & mip[i]) | (0xFF ^ mip[i]);
     localIP[i] = lip[i];
