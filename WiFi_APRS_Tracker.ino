@@ -35,10 +35,9 @@ TCPServer nmeaServer(10110);  // NMEA-0183 Navigational Data
 TCPServer gpsdServer(2947);   // GPS Daemon request/response protocol
 
 // UDP Broadcast
-WiFiUDP bcastUDP;
+WiFiUDP   bcastUDP;
 IPAddress bcastIP(0, 0, 0, 0);
-IPAddress localIP(0, 0, 0, 0);
-const int bcastPort = 10111;
+const int bcastPort = 10110;
 
 // Mozilla Location Services
 #include "mls.h"
@@ -155,7 +154,11 @@ void wifiConnect(int timeout = 300) {
   UDP broadcast
 */
 void broadcast(char *buf, size_t len) {
-  bcastUDP.beginPacketMulticast(bcastIP, bcastPort, localIP);
+  // Find the broadcast IP
+  bcastIP = ~ WiFi.subnetMask() | WiFi.gatewayIP();
+  Serial.printf("$PBCST,%u,%d.%d.%d.%d\r\n", bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
+  // Send the packet
+  bcastUDP.beginPacket(bcastIP, bcastPort);
   bcastUDP.write(buf, len);
   bcastUDP.endPacket();
 }
@@ -254,18 +257,6 @@ void setup() {
   nmeaServer.init("nmea-0183", nmea.welcome);
   // Start GPSD TCP server
   gpsdServer.init("gpsd", "{\"class\":\"VERSION\",\"release\":\"3.2\"}\r\n");
-
-  // Compute the broadcast IP
-  IPAddress lip = WiFi.localIP();
-  IPAddress mip = WiFi.subnetMask();
-  // TODO check this
-  // IPAddress broadcastIp;
-  // broadcastIp = ~WiFi.subnetMask() | WiFi.gatewayIP();
-  for (int i = 0; i < 4; i++) {
-    bcastIP[i] = (lip[i] & mip[i]) | (0xFF ^ mip[i]);
-    localIP[i] = lip[i];
-  }
-  Serial.printf("$PBCST,%u,%d.%d.%d.%d\r\n", bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
 }
 
 /**
