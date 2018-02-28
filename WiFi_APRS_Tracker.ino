@@ -35,10 +35,9 @@ TCPServer nmeaServer(10110);  // NMEA-0183 Navigational Data
 TCPServer gpsdServer(2947);   // GPS Daemon request/response protocol
 
 // UDP Broadcast
-WiFiUDP bcastUDP;
+WiFiUDP   bcastUDP;
 IPAddress bcastIP(0, 0, 0, 0);
-IPAddress localIP(0, 0, 0, 0);
-const int bcastPort = 10111;
+const int bcastPort = 10110;
 
 // Mozilla Location Services
 #include "mls.h"
@@ -155,7 +154,11 @@ void wifiConnect(int timeout = 300) {
   UDP broadcast
 */
 void broadcast(char *buf, size_t len) {
-  bcastUDP.beginPacketMulticast(bcastIP, bcastPort, localIP);
+  // Find the broadcast IP
+  bcastIP = ~ WiFi.subnetMask() | WiFi.gatewayIP();
+  Serial.printf("$PBCST,%u,%d.%d.%d.%d\r\n", bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
+  // Send the packet
+  bcastUDP.beginPacket(bcastIP, bcastPort);
   bcastUDP.write(buf, len);
   bcastUDP.endPacket();
 }
@@ -251,18 +254,9 @@ void setup() {
     Serial.print("$PMDNS,ERROR\r\n");
 
   // Start NMEA TCP server
-  nmeaServer.init("NMEA");
+  nmeaServer.init("nmea-0183", nmea.welcome);
   // Start GPSD TCP server
-  gpsdServer.init("GPSD");
-
-  // Compute the broadcast IP
-  IPAddress lip = WiFi.localIP();
-  IPAddress mip = WiFi.subnetMask();
-  for (int i = 0; i < 4; i++) {
-    bcastIP[i] = (lip[i] & mip[i]) | (0xFF ^ mip[i]);
-    localIP[i] = lip[i];
-  }
-  Serial.printf("$PBCST,%u,%d.%d.%d.%d\r\n", bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
+  gpsdServer.init("gpsd", "{\"class\":\"VERSION\",\"release\":\"3.2\"}\r\n");
 }
 
 /**
@@ -274,8 +268,8 @@ void loop() {
   yield();
 
   // Handle NMEA and GPSD clients
-  nmeaServer.check(nmea.welcome); //
-  gpsdServer.check("{\"class\":\"VERSION\",\"release\":\"3.2\"}\r\n"); //
+  nmeaServer.check();
+  gpsdServer.check();
 
   // Uptime
   unsigned long now = millis() / 1000;
@@ -346,25 +340,25 @@ void loop() {
         // GGA
         lenServer = nmea.getGGA(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, 1, found);
         Serial.print(bufServer);
-        if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
+        if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
         broadcast(bufServer, lenServer);
         // RMC
         lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
         Serial.print(bufServer);
-        if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
+        if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
         broadcast(bufServer, lenServer);
         // GLL
         //lenServer = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
         //Serial.print(bufServer);
-        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
+        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
         // VTG
         //lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
         //Serial.print(bufServer);
-        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
+        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
         // ZDA
         //lenServer = nmea.getZDA(bufServer, 200, utm);
         //Serial.print(bufServer);
-        //if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
+        //if (nmeaClients) nmeaServer.sendAll(bufServer);
 
         // GPSD
         // {"class":"TPV","tag":"GGA","device":"/dev/ttyUSB0","mode":3,"lat":44.433253333,"lon":26.126990000,"alt":0.000}
@@ -378,7 +372,7 @@ void loop() {
           dtostrf(mls.current.longitude, 12, 9, coord);
           strncat(bufServer, coord, 16);
           strcat(bufServer, ",\"alt\":0.000}\r\n");
-          gpsdServer.sendAll(bufServer, strlen(bufServer));
+          gpsdServer.sendAll(bufServer);
           Serial.print("$PGPSD,");
           Serial.print(bufServer);
         }
@@ -404,7 +398,7 @@ void loop() {
               // Local buffer, max comment length is 43 bytes
               char buf[45] = "";
               // Prepare the comment
-              snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Vcc:%d.%d RSSI:%d"), acc, (int)(mls.distance), (int)(3.6 * mls.speed), vcc / 1000, (vcc % 1000) / 100, rssi);
+              snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Crs:%s Vcc:%d.%d RSSI:%d"), acc, (int)(mls.distance), (int)(3.6 * mls.speed), mls.getCardinal(sCrs), vcc / 1000, (vcc % 1000) / 100, rssi);
               // Report course and speed
               aprs.sendPosition(utm, mls.current.latitude, mls.current.longitude, sCrs, mls.knots, -1, buf);
               // Send the telemetry
