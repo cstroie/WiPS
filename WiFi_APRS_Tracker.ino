@@ -112,6 +112,83 @@ void setLED(int load) {
 }
 
 /**
+  Try WPS PBC
+  TODO
+*/
+bool tryWPSPBC() {
+  Serial.println("WPS config start");
+  bool wpsSuccess = WiFi.beginWPSConfig();
+  if (wpsSuccess) {
+    // Well this means not always success :-/ in case of a timeout we have an empty ssid
+    String newSSID = WiFi.SSID();
+    if (newSSID.length() > 0) {
+      // WPSConfig has already connected in STA mode successfully to the new station.
+      Serial.printf("WPS finished. Connected successfull to SSID '%s'\n", newSSID.c_str());
+    } else {
+      wpsSuccess = false;
+    }
+  }
+  return wpsSuccess;
+}
+
+/**
+  Try to connect to open wifi networks
+*/
+bool tryOpenNetworks() {
+  // Scan
+  int netCount = WiFi.scanNetworks();
+  bool result = false;
+  if (netCount > 0) {
+    char ssid[WL_SSID_MAX_LENGTH] = "";
+    for (size_t i = 1; i < netCount; i++) {
+      // Find the open network
+      if (WiFi.encryptionType(i) == ENC_TYPE_NONE) {
+        memcpy(ssid, WiFi.SSID(i).c_str(), WL_SSID_MAX_LENGTH);
+        Serial.printf("$PWIFI,OPN,%s\r\n", ssid);
+        // Try to connect for 15 seconds
+        Serial.printf("$PWIFI,BGN,%s\r\n", ssid);
+        WiFi.begin(ssid);
+        int tries = 0;
+        while (!WiFi.isConnected() and tries < 15) {
+          tries++;
+          Serial.printf("$PWIFI,TRY,%d,%s\r\n", tries, ssid);
+          delay(1000);
+        };
+        // Check the internet connection for 5 seconds
+        if (WiFi.isConnected()) {
+          Serial.printf("$PWIFI,CON,%s\r\n", ssid);
+          WiFiClientSecure testClient;
+          testClient.setTimeout(5000);
+          char buf[64] = "";
+          if (testClient.connect("www.google.com", 443)) {
+            testClient.print("HEAD / HTTP/1.0\r\n\r\n");
+            if (testClient.connected()) {
+              int rlen = testClient.readBytesUntil('\r', buf, 64);
+              buf[rlen] = '\0';
+              Serial.printf("$PHTTP,RWT,%s\r\n", buf);
+              if (testClient.find("\r\n")) {
+                result = true;
+                break;
+              }
+            }
+            else
+              Serial.printf("$PHTTP,DIS,%s\r\n", ssid);
+            // Stop the test
+            testClient.stop();
+          }
+          else
+            Serial.printf("$PHTTP,ERR,%s\r\n", ssid);
+        }
+      }
+    }
+  }
+  // Clear the scan results
+  WiFi.scanDelete();
+  // Return the result
+  return result;
+}
+
+/**
   Feedback notification when SoftAP is started
 */
 void wifiCallback(WiFiManager *wifiMgr) {
@@ -138,12 +215,39 @@ void wifiConnect(int timeout = 300) {
   Serial.printf("$PWIFI,CON,%s\r\n", WIFI_SSID);
 #else
   setLED(4);
-  WiFiManager wifiManager;
-  wifiManager.setTimeout(timeout);
-  wifiManager.setAPCallback(wifiCallback);
-  while (!wifiManager.autoConnect(NODENAME)) {
-    setLED(2);
-    delay(1000);
+  char ssid[WL_SSID_MAX_LENGTH] = "";
+  char pass[WL_WPA_KEY_MAX_LENGTH] = "";
+
+  // Try to connect to the last known AP
+  if (WiFi.SSID().c_str() != "") {
+    // Keep the SSID and PSK
+    memcpy(ssid, WiFi.SSID().c_str(), WL_SSID_MAX_LENGTH);
+    memcpy(pass, WiFi.psk().c_str(), WL_WPA_KEY_MAX_LENGTH);
+    // Connect
+    Serial.printf("$PWIFI,BGN,%s\r\n", ssid);
+    WiFi.begin();
+    int tries = 0;
+    while (!WiFi.isConnected() and tries < 15) {
+      tries++;
+      Serial.printf("$PWIFI,TRY,%d,%s\r\n", tries, ssid);
+      delay(1000);
+    };
+  }
+  if (WiFi.isConnected())
+    Serial.printf("$PWIFI,CON,%s\r\n", WiFi.SSID().c_str());
+  else if (!tryOpenNetworks()) {
+    // Try again the known ssid and psk
+    WiFi.begin(ssid, pass);
+    // Use the WiFi Manager
+    WiFiManager wifiManager;
+    wifiManager.setTimeout(timeout);
+    wifiManager.setAPCallback(wifiCallback);
+    setLED(10);
+    while (!wifiManager.startConfigPortal(NODENAME)) {
+      setLED(2);
+      WiFi.begin(ssid, pass);
+      delay(1000);
+    }
   }
 #endif
   // Led OFF
@@ -169,7 +273,7 @@ void broadcast(char *buf, size_t len) {
 void setup() {
   // Init the serial communication
   Serial.begin(9600, SERIAL_8N1, SERIAL_TX_ONLY);
-  // Compose the welcome message
+  // Compose the NMEA welcome message
   nmea.getWelcome(NODENAME, VERSION);
   Serial.print(nmea.welcome);
 
