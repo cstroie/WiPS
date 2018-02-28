@@ -251,9 +251,9 @@ void setup() {
     Serial.print("$PMDNS,ERROR\r\n");
 
   // Start NMEA TCP server
-  nmeaServer.init("NMEA");
+  nmeaServer.init("NMEA", nmea.welcome);
   // Start GPSD TCP server
-  gpsdServer.init("GPSD");
+  gpsdServer.init("GPSD", "{\"class\":\"VERSION\",\"release\":\"3.2\"}\r\n");
 
   // Compute the broadcast IP
   IPAddress lip = WiFi.localIP();
@@ -274,8 +274,8 @@ void loop() {
   yield();
 
   // Handle NMEA and GPSD clients
-  nmeaServer.check(nmea.welcome); //
-  gpsdServer.check("{\"class\":\"VERSION\",\"release\":\"3.2\"}\r\n"); //
+  nmeaServer.check();
+  gpsdServer.check();
 
   // Uptime
   unsigned long now = millis() / 1000;
