@@ -398,7 +398,7 @@ void loop() {
               // Local buffer, max comment length is 43 bytes
               char buf[45] = "";
               // Prepare the comment
-              snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Vcc:%d.%d RSSI:%d"), acc, (int)(mls.distance), (int)(3.6 * mls.speed), vcc / 1000, (vcc % 1000) / 100, rssi);
+              snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Crs:%s Vcc:%d.%d RSSI:%d"), acc, (int)(mls.distance), (int)(3.6 * mls.speed), mls.getCardinal(sCrs), vcc / 1000, (vcc % 1000) / 100, rssi);
               // Report course and speed
               aprs.sendPosition(utm, mls.current.latitude, mls.current.longitude, sCrs, mls.knots, -1, buf);
               // Send the telemetry
