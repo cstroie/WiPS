@@ -13,51 +13,64 @@ TCPServer::TCPServer(uint16_t serverPort) : WiFiServer(serverPort) {
   port = serverPort;
 }
 
+/**
+  Initialize the server
+  
+  @param serverName the name the server is known as
+*/
 void TCPServer::init(const char *serverName) {
+  // Keep the server name
+  strncpy(name, serverName, sizeof(name));
+  name[sizeof(name) - 1] = '\0';
   // Configure mDNS
-  MDNS.addService(serverName, "tcp", port);
-  Serial.printf("$PMDNS,%s,%u,TCP,%u\r\n", serverName, MAX_CLIENTS, port);
+  MDNS.addService(name, "tcp", port);
+  Serial.printf("$PMDNS,%s,%u,TCP,%u\r\n", name, MAX_CLIENTS, port);
   // Start the TCP server
   begin();
   setNoDelay(true);
 }
 
 /**
-  Check the connected clients to NMEA server
+  Check the connected clients
+  
+  @param welcome the welcome message to send to the new clients
 */
 int TCPServer::check(const char *welcome) {
   int i;
   // Check if there are any new clients
   if (hasClient()) {
     for (i = 0; i < MAX_CLIENTS; i++) {
-      // Find free or disconnected slots
-      if ((not TCPClient[i]) or
-          (not TCPClient[i].connected())) {
+      // Find free or disconnected servers
+      if ((not TCPClient[i]) or (not TCPClient[i].connected())) {
         if (TCPClient[i]) {
+          // Force disconnecting the stalled server
           TCPClient[i].stop();
-          Serial.printf("$PSRVD,%u,%u,%u\r\n", port, clients, i);
+          clients--;
+          Serial.printf("$PSRVD,%s,%u,%u\r\n", name, clients, i);
         }
+        // Create a new server connection
         TCPClient[i] = available();
-        // Report connection
+        clients++;
+        // Report the new connection
         IPAddress ip = TCPClient[i].remoteIP();
-        Serial.printf("$PSRVC,%u,%u,%u,%d.%d.%d.%d\r\n", port, clients + 1, i, ip[0], ip[1], ip[2], ip[3]);
-        // Welcome
+        Serial.printf("$PSRVC,%s,%u,%u,%d.%d.%d.%d\r\n", name, clients, i, ip[0], ip[1], ip[2], ip[3]);
+        // Send the welcome message
         TCPClient[i].print(welcome);
         break;
       }
     }
-    // No free or disconnected splots, so reject
+    // No free or disconnected servers, so reject
     if (i == MAX_CLIENTS) {
       WiFiClient rejected = available();
       // Report connection
       IPAddress ip = rejected.remoteIP();
-      Serial.printf("$PSRVR,%u,%u,%u,%d.%d.%d.%d\r\n", port, clients, i, ip[0], ip[1], ip[2], ip[3]);
+      Serial.printf("$PSRVR,%s,%u,%u,%d.%d.%d.%d\r\n", name, clients, i, ip[0], ip[1], ip[2], ip[3]);
       rejected.stop();
     }
   }
 
-  clients = 0;
   // Flush client data while counting them
+  clients = 0;
   for (i = 0; i < MAX_CLIENTS; i++) {
     if (TCPClient[i] and TCPClient[i].connected()) {
       clients++;
@@ -71,19 +84,19 @@ int TCPServer::check(const char *welcome) {
 }
 
 /**
-  Send the NMEA sentence to all connected clients
+  Send the message to all connected clients
 
-  @param sentence the NMEA sentence
+  @param buf the message to send to all clients
 */
-void TCPServer::sendAll(char *buf, size_t len) {
+void TCPServer::sendAll(char *buf) {
   // Send the data to all connected clients
   for (int i = 0; i < MAX_CLIENTS; i++) {
     if (TCPClient[i] && TCPClient[i].connected()) {
-      TCPClient[i].write(buf, len);
+      TCPClient[i].print(buf);
       yield();
     }
     else {
-      // Stop the disconnected client
+      // Stop the server if the client is disconnected
       if (TCPClient[i]) TCPClient[i].stop();
     }
   }
