@@ -26,6 +26,7 @@ class TCPServer: public WiFiServer {
   private:
     int  port;
     char name[16];
+    char wlcm[1000;
     WiFiClient TCPClient[MAX_CLIENTS];
 };
 
