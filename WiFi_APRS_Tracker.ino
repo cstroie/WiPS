@@ -346,25 +346,25 @@ void loop() {
         // GGA
         lenServer = nmea.getGGA(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, 1, found);
         Serial.print(bufServer);
-        if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
+        if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
         broadcast(bufServer, lenServer);
         // RMC
         lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
         Serial.print(bufServer);
-        if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
+        if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
         broadcast(bufServer, lenServer);
         // GLL
         //lenServer = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
         //Serial.print(bufServer);
-        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
+        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
         // VTG
         //lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
         //Serial.print(bufServer);
-        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer, lenServer);
+        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
         // ZDA
         //lenServer = nmea.getZDA(bufServer, 200, utm);
         //Serial.print(bufServer);
-        //if (nmeaClients) nmeaServer.sendAll(bufServer, lenServer);
+        //if (nmeaClients) nmeaServer.sendAll(bufServer);
 
         // GPSD
         // {"class":"TPV","tag":"GGA","device":"/dev/ttyUSB0","mode":3,"lat":44.433253333,"lon":26.126990000,"alt":0.000}
@@ -378,7 +378,7 @@ void loop() {
           dtostrf(mls.current.longitude, 12, 9, coord);
           strncat(bufServer, coord, 16);
           strcat(bufServer, ",\"alt\":0.000}\r\n");
-          gpsdServer.sendAll(bufServer, strlen(bufServer));
+          gpsdServer.sendAll(bufServer);
           Serial.print("$PGPSD,");
           Serial.print(bufServer);
         }
