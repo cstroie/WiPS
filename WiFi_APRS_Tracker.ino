@@ -324,7 +324,7 @@ void setup() {
   setLED(0);
 
   // Try to connect, indefinitely
-  while (not wifiConnect()) {};
+  if (not wifiConnect()) ESP.restart();
   // Connected
   showWiFi();
 
