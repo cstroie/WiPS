@@ -132,59 +132,82 @@ bool tryWPSPBC() {
 }
 
 /**
-  Try to connect to open wifi networks
+  Try to connect to a HTTPS server
+
+  @param timeout connection timeout
 */
-bool tryOpenNetworks() {
-  // Scan
-  int netCount = WiFi.scanNetworks();
+bool wifiCheckHTTP(int timeout = 10000, char* server = "www.google.com", int port = 443) {
   bool result = false;
-  if (netCount > 0) {
-    char ssid[WL_SSID_MAX_LENGTH] = "";
-    for (size_t i = 1; i < netCount; i++) {
-      // Find the open network
-      if (WiFi.encryptionType(i) == ENC_TYPE_NONE) {
-        memcpy(ssid, WiFi.SSID(i).c_str(), WL_SSID_MAX_LENGTH);
-        Serial.printf("$PWIFI,OPN,%s\r\n", ssid);
-        // Try to connect for 15 seconds
-        Serial.printf("$PWIFI,BGN,%s\r\n", ssid);
-        WiFi.begin(ssid);
-        int tries = 0;
-        while (!WiFi.isConnected() and tries < 15) {
-          tries++;
-          Serial.printf("$PWIFI,TRY,%d,%s\r\n", tries, ssid);
-          delay(1000);
-        };
-        // Check the internet connection for 5 seconds
-        if (WiFi.isConnected()) {
-          Serial.printf("$PWIFI,CON,%s\r\n", ssid);
-          WiFiClientSecure testClient;
-          testClient.setTimeout(5000);
-          char buf[64] = "";
-          if (testClient.connect("www.google.com", 443)) {
-            testClient.print("HEAD / HTTP/1.0\r\n\r\n");
-            if (testClient.connected()) {
-              int rlen = testClient.readBytesUntil('\r', buf, 64);
-              buf[rlen] = '\0';
-              Serial.printf("$PHTTP,RWT,%s\r\n", buf);
-              if (testClient.find("\r\n")) {
-                result = true;
-                break;
-              }
-            }
-            else
-              Serial.printf("$PHTTP,DIS,%s\r\n", ssid);
-            // Stop the test
-            testClient.stop();
-          }
-          else
-            Serial.printf("$PHTTP,ERR,%s\r\n", ssid);
-        }
-      }
+  WiFiClientSecure testClient;
+  testClient.setTimeout(timeout);
+  char buf[64] = "";
+  if (testClient.connect(server, port)) {
+    Serial.printf("$PHTTP,CON,%s,%d\r\n", server, port);
+    // Send a request
+    testClient.print("HEAD / HTTP/1.0\r\n\r\n");
+    // Check the response
+    int rlen = testClient.readBytesUntil('\r', buf, 64);
+    if (rlen > 0) {
+      buf[rlen] = '\0';
+      result = true;
+      Serial.printf("$PHTTP,RSP,%s\r\n", buf);
+    }
+    else
+      Serial.printf("$PHTTP,DIS,%s,%d\r\n", server, port);
+    // Stop the test
+    testClient.stop();
+  }
+  else
+    Serial.printf("$PHTTP,ERR,%s,%d\r\n", server, port);
+  return result;
+}
+
+/**
+  Try to connect to WiFi network
+
+  @param ssid the WiFi SSID
+  @param pass the WiFi psk
+  @param timeout connection timeout
+  @return connection result
+*/
+bool wifiTryConnect(char* ssid = NULL, char* pass = NULL, int timeout = 15) {
+  bool result = false;
+
+  // Need a name for default SSID
+  char _ssid[WL_SSID_MAX_LENGTH] = "";
+
+  if (ssid == NULL) {
+    // Connect to stored SSID
+    if (WiFi.SSID() != "") {
+      strncpy(_ssid, WiFi.SSID().c_str(), WL_SSID_MAX_LENGTH);
+    }
+    else {
+      // No stored and no specified SSID
+      return result;
     }
   }
-  // Clear the scan results
-  WiFi.scanDelete();
-  // Return the result
+  else {
+    // Keep the specified SSID, for convenience
+    strncpy(_ssid, ssid, WL_SSID_MAX_LENGTH);
+  }
+
+  // Try to connect
+  Serial.printf("$PWIFI,BGN,%s\r\n", _ssid);
+  // Different calls for different configurations
+  if (ssid == NULL) WiFi.begin();
+  else              WiFi.begin(_ssid, pass);
+  // Check the status
+  int tries = 0;
+  while (!WiFi.isConnected() and tries < timeout) {
+    tries++;
+    Serial.printf("$PWIFI,TRY,%d/%d,%s\r\n", tries, timeout, _ssid);
+    delay(1000);
+  };
+  // Check the internet connection
+  if (WiFi.isConnected()) {
+    Serial.printf("$PWIFI,CON,%s\r\n", _ssid);
+    result = true;
+  }
   return result;
 }
 
@@ -197,61 +220,79 @@ void wifiCallback(WiFiManager *wifiMgr) {
 }
 
 /**
+  Try to connect to open wifi networks
+
+  @result connection result to an open WiFi
+*/
+bool wifiOpenNetworks() {
+  bool result = false;
+  // Disable credetials storing
+  WiFi.persistent(false);
+  // Scan
+  int netCount = WiFi.scanNetworks();
+  if (netCount > 0) {
+    char ssid[WL_SSID_MAX_LENGTH] = "";
+    for (size_t i = 1; i < netCount; i++) {
+      // Find the open networks
+      if (WiFi.encryptionType(i) == ENC_TYPE_NONE) {
+        // Keep the SSID
+        strncpy(ssid, WiFi.SSID(i).c_str(), WL_SSID_MAX_LENGTH);
+        Serial.printf("$PWIFI,OPN,%s\r\n", ssid);
+        // Try to connect to wifi
+        if (wifiTryConnect(ssid)) {
+          // Check the internet connection
+          if (wifiCheckHTTP()) {
+            result = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+  // Clear the scan results
+  WiFi.scanDelete();
+  // Re-enable credetials storing
+  WiFi.persistent(true);
+  // Return the result
+  return result;
+}
+
+/**
   Try to connect to WiFi
 */
-void wifiConnect(int timeout = 300) {
+bool wifiConnect(int timeout = 300) {
   // Set the host name
   WiFi.hostname(NODENAME);
+  // Set the mode
+  WiFi.mode(WIFI_STA);
   // Led ON
-  setLED(10);
+  setLED(1);
+
   // Try to connect to WiFi
 #ifdef WIFI_SSID
-  Serial.printf("$PWIFI,BGN,%s\r\n", WIFI_SSID);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (!WiFi.isConnected()) {
-    Serial.printf("$PWIFI,TRY,%s\r\n", WIFI_SSID);
-    delay(1000);
-  };
-  Serial.printf("$PWIFI,CON,%s\r\n", WIFI_SSID);
+  wifiTryConnect(WIFI_SSID, WIFI_PASS);
 #else
-  setLED(4);
-  char ssid[WL_SSID_MAX_LENGTH] = "";
-  char pass[WL_WPA_KEY_MAX_LENGTH] = "";
-
   // Try to connect to the last known AP
-  if (WiFi.SSID().c_str() != "") {
-    // Keep the SSID and PSK
-    memcpy(ssid, WiFi.SSID().c_str(), WL_SSID_MAX_LENGTH);
-    memcpy(pass, WiFi.psk().c_str(), WL_WPA_KEY_MAX_LENGTH);
-    // Connect
-    Serial.printf("$PWIFI,BGN,%s\r\n", ssid);
-    WiFi.begin();
-    int tries = 0;
-    while (!WiFi.isConnected() and tries < 15) {
-      tries++;
-      Serial.printf("$PWIFI,TRY,%d,%s\r\n", tries, ssid);
-      delay(1000);
-    };
-  }
-  if (WiFi.isConnected())
-    Serial.printf("$PWIFI,CON,%s\r\n", WiFi.SSID().c_str());
-  else if (!tryOpenNetworks()) {
-    // Try again the known ssid and psk
-    WiFi.begin(ssid, pass);
-    // Use the WiFi Manager
-    WiFiManager wifiManager;
-    wifiManager.setTimeout(timeout);
-    wifiManager.setAPCallback(wifiCallback);
-    setLED(10);
-    while (!wifiManager.startConfigPortal(NODENAME)) {
-      setLED(2);
-      WiFi.begin(ssid, pass);
-      delay(1000);
+  if (WiFi.status() != WL_CONNECTED) {
+    if (not wifiTryConnect()) {
+      // Try the open networks
+      if (not wifiOpenNetworks()) {
+        // Use the WiFi Manager
+        WiFiManager wifiManager;
+        wifiManager.setTimeout(timeout);
+        wifiManager.setAPCallback(wifiCallback);
+        setLED(10);
+        if (not wifiManager.startConfigPortal(NODENAME)) {
+          setLED(2);
+        }
+      }
     }
   }
 #endif
   // Led OFF
   setLED(0);
+
+  return WiFi.status() == WL_CONNECTED;
 }
 
 /**
@@ -273,6 +314,7 @@ void broadcast(char *buf, size_t len) {
 void setup() {
   // Init the serial communication
   Serial.begin(9600, SERIAL_8N1, SERIAL_TX_ONLY);
+  Serial.print("\r\n");
   // Compose the NMEA welcome message
   nmea.getWelcome(NODENAME, VERSION);
   Serial.print(nmea.welcome);
@@ -281,8 +323,8 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   setLED(0);
 
-  // Try to connect
-  wifiConnect();
+  // Try to connect, indefinitely
+  while (not wifiConnect()) {};
   // Connected
   showWiFi();
 
