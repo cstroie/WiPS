@@ -23,7 +23,7 @@ void TCPServer::init(const char *serverName, const char *welcome) {
   strncpy(name, serverName, sizeof(name));
   name[sizeof(name) - 1] = '\0';
   // Keep the welcome message
-  strncpy(wlcm, serverName, sizeof(wlcm));
+  strncpy(wlcm, welcome, sizeof(wlcm));
   wlcm[sizeof(wlcm) - 1] = '\0';
   // Configure mDNS
   MDNS.addService((const char*)name, "tcp", (int)port);
