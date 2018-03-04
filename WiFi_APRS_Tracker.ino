@@ -589,17 +589,18 @@ void loop() {
         Serial.print(acc);
         Serial.print("\r\n");
       }
+      // Repeat the geolocation after a delay
+      geoNextTime = now + geoDelay;
     }
     else {
       // No WiFi networks
       Serial.print(F("0\r\n"));
+      // Repeat the geolocation now
+      geoNextTime = now;
     }
 
     // Led off
     setLED(0);
-
-    // Repeat the geolocation after a delay
-    geoNextTime = now + geoDelay;
   };
 }
 // vim: set ft=arduino ai ts=2 sts=2 et sw=2 sta nowrap nu :
