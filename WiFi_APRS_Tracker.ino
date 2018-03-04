@@ -10,6 +10,9 @@
 // True if the tracker is being probed
 bool PROBE = true;
 
+// Led
+#define LED 2
+
 // User settings
 #include "config.h"
 
@@ -92,7 +95,7 @@ void showWiFi() {
     charIP(WiFi.dnsIP(),     nsbuf, sizeof(nsbuf), false);
 
     // Print
-    Serial.printf("$PWIFI,CFG,%s,%d,%d,%s,%s,%s\r\n",
+    Serial.printf("$PWIFI,CON,%s,%d,%ddBm,%s,%s,%s\r\n",
                   WiFi.SSID().c_str(), WiFi.channel(), WiFi.RSSI(),
                   ipbuf, gwbuf, nsbuf);
   }
@@ -106,7 +109,7 @@ void showWiFi() {
 */
 void setLED(int load) {
   int level = (1 << load) - 1;
-  analogWrite(LED_BUILTIN, PWMRANGE - level);
+  analogWrite(LED, PWMRANGE - level);
 }
 
 /**
@@ -203,7 +206,7 @@ bool wifiTryConnect(char* ssid = NULL, char* pass = NULL, int timeout = 15) {
   };
   // Check the internet connection
   if (WiFi.isConnected()) {
-    Serial.printf("$PWIFI,CON,%s\r\n", _ssid);
+    showWiFi();
     result = true;
   }
   return result;
@@ -317,14 +320,12 @@ void setup() {
   nmea.getWelcome(NODENAME, VERSION);
   Serial.print(nmea.welcome);
 
-  // Initialize the LED_BUILTIN pin as an output
-  pinMode(LED_BUILTIN, OUTPUT);
+  // Initialize the LED pin as an output
+  pinMode(LED, OUTPUT);
   setLED(0);
 
   // Try to connect, indefinitely
   if (not wifiConnect()) ESP.restart();
-  // Connected
-  showWiFi();
 
   // OTA Update
   ArduinoOTA.setPort(otaPort);
