@@ -31,8 +31,6 @@ int otaPort           = 8266;
 #include "server.h"
 // NMEA server
 TCPServer nmeaServer(10110);  // NMEA-0183 Navigational Data
-// GPSD server
-TCPServer gpsdServer(2947);   // GPS Daemon request/response protocol
 
 // UDP Broadcast
 WiFiUDP   bcastUDP;
@@ -401,8 +399,6 @@ void setup() {
 
   // Start NMEA TCP server
   nmeaServer.init("nmea-0183", nmea.welcome);
-  // Start GPSD TCP server
-  gpsdServer.init("gpsd", "{\"class\":\"VERSION\",\"release\":\"3.2\"}\r\n");
 }
 
 /**
@@ -413,9 +409,8 @@ void loop() {
   ArduinoOTA.handle();
   yield();
 
-  // Handle NMEA and GPSD clients
+  // Handle NMEA clients
   nmeaServer.check();
-  gpsdServer.check();
 
   // Uptime
   unsigned long now = millis() / 1000;
@@ -505,23 +500,6 @@ void loop() {
         //lenServer = nmea.getZDA(bufServer, 200, utm);
         //Serial.print(bufServer);
         //if (nmeaClients) nmeaServer.sendAll(bufServer);
-
-        // GPSD
-        // {"class":"TPV","tag":"GGA","device":"/dev/ttyUSB0","mode":3,"lat":44.433253333,"lon":26.126990000,"alt":0.000}
-        // {"class":"TPV","tag":"RMC","device":"/dev/ttyUSB0","mode":3,"lat":44.433203333,"lon":26.126956667,"alt":0.000,"track":0.0000,"speed":0.000}
-        if (gpsdServer.clients) {
-          char coord[16] = "";
-          strcpy(bufServer, "{\"class\":\"TPV\",\"tag\":\"GGA\",\"device\":\"wifitrk\",\"mode\":3,\"lat\":");
-          dtostrf(mls.current.latitude, 12, 9, coord);
-          strncat(bufServer, coord, 16);
-          strcat(bufServer, ",\"lon\":");
-          dtostrf(mls.current.longitude, 12, 9, coord);
-          strncat(bufServer, coord, 16);
-          strcat(bufServer, ",\"alt\":0.000}\r\n");
-          gpsdServer.sendAll(bufServer);
-          Serial.print("$PGPSD,");
-          Serial.print(bufServer);
-        }
 
         // Read the Vcc (mV)
         int vcc  = ESP.getVcc();
