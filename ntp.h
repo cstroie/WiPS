@@ -12,14 +12,25 @@
 #include "Arduino.h"
 #include <WiFiUdp.h>
 
+struct datetime_t {
+  uint8_t yy;
+  uint8_t ll;
+  uint8_t dd;
+  uint8_t hh;
+  uint8_t mm;
+  uint8_t ss;
+};
+
 class NTP {
   public:
     NTP();
-    void          init(const char *ntpServer, int ntpPort = 123);
+    unsigned long init(const char *ntpServer, int ntpPort = 123);
     void          setServer(const char *ntpServer, int ntpPort = 123);
     void          setTZ(float tz);
+    void          report(unsigned long utm);
     unsigned long getSeconds(bool sync = true);
     unsigned long getUptime(char *buf, size_t len);
+    datetime_t    getDateTime(unsigned long utm);
     bool          valid       = false;               // Flag to know the time is accurate
   private:
     unsigned long getNTP();

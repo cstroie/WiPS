@@ -9,8 +9,6 @@
 #include "Arduino.h"
 #include "nmea.h"
 
-static const uint8_t daysInMonth [] PROGMEM = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-
 NMEA::NMEA() {
 }
 
@@ -65,12 +63,10 @@ void NMEA::getCoords(float lat, float lng) {
   @param utm UNIX time
 */
 void NMEA::getTime(unsigned long utm) {
+  static const uint8_t daysInMonth [] PROGMEM = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
   if (utm != utmOLD) {
-    hh = (utm % 86400L) / 3600;
-    mm = (utm % 3600) / 60;
-    ss =  utm % 60;
-
-    utm -= 946684800UL;    // bring to 2000 timestamp from 1970
+    // Bring to year 2000 epoch
+    utm -= 946684800UL;
     ss = utm % 60;
     utm /= 60;
     mm = utm % 60;

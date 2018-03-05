@@ -12,20 +12,47 @@
 NTP::NTP() {
 }
 
-void NTP::init(const char *ntpServer, int ntpPort) {
+/**
+  Init the NTP module, set the server and port, and force a sync
+
+  @param ntpServer NTP server
+  @param ntpPort NTP port
+*/
+unsigned long NTP::init(const char *ntpServer, int ntpPort) {
   setServer(ntpServer, ntpPort);
-  getSeconds();
+  getSeconds(true);
 }
 
+/**
+  Set the NTP server and port
+
+  @param ntpServer NTP server
+  @param ntpPort NTP port
+*/
 void NTP::setServer(const char *ntpServer, int ntpPort) {
   port = ntpPort;
   strncpy(server, (char*)ntpServer, sizeof(server));
 }
 
+/**
+  Set the time zone
+
+  @param tz time zone in hours
+*/
 void NTP::setTZ(float tz) {
   TZ = tz;
 }
 
+/**
+  Report the time
+
+  @param utm UNIX time
+*/
+void NTP::report(unsigned long utm) {
+  datetime_t dt = getDateTime(utm);
+  Serial.printf("$PNTPC,0x%08X,%d.%02d.%02d,%02d.%02d.%02d\r\n",
+                utm, dt.yy + 2000, dt.ll, dt.dd, dt.hh, dt.mm, dt.ss);
+}
 
 /**
   Get current time as UNIX time (1970 epoch)
@@ -49,7 +76,7 @@ unsigned long NTP::getSeconds(bool sync) {
       // Time sync has succeeded, sync again in 8 hours
       nextSync = millis() + 28800000UL;
       valid = true;
-      Serial.printf("$PNTPC,0x%08X\r\n", utm);
+      report(utm);
     }
   }
   // Get current time based on uptime and time delta,
@@ -135,4 +162,40 @@ unsigned long NTP::getUptime(char *buf, size_t len) {
   else         snprintf_P(buf, len, PSTR("%d days, %02d:%02d:%02d"), dd, hh, mm, ss);
   // Return the uptime in seconds
   return upt;
+}
+
+/**
+  Get the date and time from UNIX time
+
+  @param utm UNIX time
+  @return date and time structure
+*/
+datetime_t NTP::getDateTime(unsigned long utm) {
+  datetime_t dt;
+  static const uint8_t daysInMonth[] PROGMEM = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  // Bring to year 2000 epoch
+  utm -= 946684800UL;
+  dt.ss = utm % 60;
+  utm /= 60;
+  dt.mm = utm % 60;
+  utm /= 60;
+  dt.hh = utm % 24;
+  uint16_t days = utm / 24;
+  uint8_t leap;
+  for (dt.yy = 0; ; ++dt.yy) {
+    leap = dt.yy % 4 == 0;
+    if (days < 365 + leap)
+      break;
+    days -= 365 + leap;
+  }
+  for (dt.ll = 1; ; ++dt.ll) {
+    uint8_t daysPerMonth = pgm_read_byte(daysInMonth + dt.ll - 1);
+    if (leap && dt.ll == 2)
+      ++daysPerMonth;
+    if (days < daysPerMonth)
+      break;
+    days -= daysPerMonth;
+  }
+  dt.dd = days + 1;
+  return dt;
 }
