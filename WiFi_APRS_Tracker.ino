@@ -310,7 +310,7 @@ bool wifiConnect(int timeout = 300) {
 void broadcast(char *buf, size_t len) {
   // Find the broadcast IP
   bcastIP = ~ WiFi.subnetMask() | WiFi.gatewayIP();
-  Serial.printf("$PBCST,%u,%d.%d.%d.%d\r\n", bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
+  //Serial.printf("$PBCST,%u,%d.%d.%d.%d\r\n", bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
   // Send the packet
   bcastUDP.beginPacket(bcastIP, bcastPort);
   bcastUDP.write(buf, len);
@@ -509,18 +509,21 @@ void loop() {
           lenServer = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+          broadcast(bufServer, lenServer);
         }
         // VTG
         if (nmeaReport.vtg) {
           lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+          broadcast(bufServer, lenServer);
         }
         // ZDA
         if (nmeaReport.zda) {
           lenServer = nmea.getZDA(bufServer, 200, utm);
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+          broadcast(bufServer, lenServer);
         }
 
         // Read the Vcc (mV)
@@ -587,6 +590,7 @@ void loop() {
       else {
         Serial.print(F("$PSCAN,NOFIX,"));
         Serial.print(acc);
+        Serial.print(","); Serial.print(ntp.getSeconds() - utm);
         Serial.print("\r\n");
       }
       // Repeat the geolocation after a delay
@@ -594,7 +598,9 @@ void loop() {
     }
     else {
       // No WiFi networks
-      Serial.print(F("0\r\n"));
+      Serial.print(F("0"));
+      Serial.print(","); Serial.print(ntp.getSeconds() - utm);
+      Serial.print(F("\r\n"));
       // Repeat the geolocation now
       geoNextTime = now;
     }
