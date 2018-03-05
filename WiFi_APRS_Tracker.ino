@@ -432,6 +432,9 @@ void loop() {
 
     // Led on
     setLED(4);
+    
+    // Get the time of the fix
+    unsigned long utm = ntp.getSeconds();
 
     // Scan the WiFi access points
     Serial.print("$PSCAN,WIFI,");
@@ -442,6 +445,7 @@ void loop() {
       // Led on
       setLED(6);
       Serial.print(found);
+      Serial.print(","); Serial.print(ntp.getSeconds() - utm);
       Serial.print("\r\n");
 
       // Geolocate
@@ -454,14 +458,13 @@ void loop() {
       else          sAcc = (((sAcc << 2) - sAcc + acc) + 2) >> 2;
 
       if (mls.current.valid) {
-        // Get the time of the fix
-        unsigned long utm = ntp.getSeconds();
         // Report
         Serial.print(F("$PSCAN,FIX,"));
         Serial.print(mls.current.latitude, 6);
         Serial.print(",");
         Serial.print(mls.current.longitude, 6);
         Serial.print(","); Serial.print(acc);
+        Serial.print(","); Serial.print(ntp.getSeconds() - utm);
 
         // Check if moving
         bool moving = mls.getMovement() >= (sAcc >> 2);
