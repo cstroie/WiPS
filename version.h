@@ -12,8 +12,8 @@
 #include "Arduino.h"
 
 // Device specific constants
-const char NODENAME[] = "WiFiTrk";
-const char nodename[] = "wifitrk";
-const char VERSION[]  = "0.3.5";
+const char NODENAME[] = "WiPS";
+const char nodename[] = "wips";
+const char VERSION[]  = "0.3.6";
 
 #endif /* VERSION_H */
