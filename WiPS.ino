@@ -24,6 +24,12 @@ bool PROBE = true;
 #include <WiFiUdp.h>
 #include <WiFiManager.h>
 
+#ifdef WIFI_SSIDPASS
+char wifiSP[] = WIFI_SSIDPASS;
+const char wifiRS[] = WIFI_RS;
+const char wifiFS[] = WIFI_FS;
+#endif
+
 // OTA
 #include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
@@ -220,10 +226,52 @@ bool wifiTryConnect(char* ssid = NULL, char* pass = NULL, int timeout = 15) {
   return result;
 }
 
+bool wifiKnownNetworks() {
+  if (strlen(wifiSP)) {
+
+    char *rs = strstr(wifiSP, wifiRS);
+    while (rs != NULL) {
+      // Put \0 in the place of separator
+      *rs = 0;
+      Serial.println((char*)rs);
+
+      char *fs = strstr(rs, wifiFS);
+      while (fs != NULL) {
+        // Put \0 in the place of separator
+        *fs = 0;
+        Serial.println((char*)fs);
+
+        fs = strstr(fs + strlen(wifiFS), wifiFS);
+      }
+
+
+      rs = strstr(rs + strlen(wifiRS), wifiRS);
+    }
+
+    /*
+      // Split the SSID/PASS string, using the Record Separator
+      char* rec, f1, f2;
+      rec = strtok(wifiSP, wifiRS);
+      while (rec != NULL) {
+      Serial.printf("%s\r\n", rec);
+
+      //f1 = strtok(rec, wifiFS);
+      //if (f1 != NULL)
+      //  f2 = strtok(NULL, wifiFS);
+
+      Serial.printf("%s\r\n", f1);
+      Serial.printf("%s\r\n", f2);
+
+      rec = strtok (NULL, wifiRS);
+      }
+    */
+  }
+}
+
 /**
   Feedback notification when SoftAP is started
 */
-void wifiCallback(WiFiManager *wifiMgr) {
+void wifiCallback(WiFiManager * wifiMgr) {
   Serial.printf("$PWIFI,SRV,%s\r\n", wifiMgr->getConfigPortalSSID().c_str());
   setLED(10);
 }
@@ -277,6 +325,8 @@ bool wifiConnect(int timeout = 300) {
   // Led ON
   setLED(1);
 
+  wifiKnownNetworks();
+
   // Try to connect to WiFi
 #ifdef WIFI_SSID
   wifiTryConnect(WIFI_SSID, WIFI_PASS);
@@ -284,15 +334,18 @@ bool wifiConnect(int timeout = 300) {
   // Try to connect to the last known AP
   if (WiFi.status() != WL_CONNECTED) {
     if (not wifiTryConnect()) {
-      // Try the open networks
-      if (not wifiOpenNetworks()) {
-        // Use the WiFi Manager
-        WiFiManager wifiManager;
-        wifiManager.setTimeout(timeout);
-        wifiManager.setAPCallback(wifiCallback);
-        setLED(10);
-        if (not wifiManager.startConfigPortal(NODENAME)) {
-          setLED(2);
+      // Try the known networks
+      if (not wifiKnownNetworks()) {
+        // Try the open networks
+        if (not wifiOpenNetworks()) {
+          // Use the WiFi Manager
+          WiFiManager wifiManager;
+          wifiManager.setTimeout(timeout);
+          wifiManager.setAPCallback(wifiCallback);
+          setLED(10);
+          if (not wifiManager.startConfigPortal(NODENAME)) {
+            setLED(2);
+          }
         }
       }
     }
