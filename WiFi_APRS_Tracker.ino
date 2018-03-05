@@ -27,8 +27,8 @@ bool PROBE = true;
 // OTA
 #include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
-int otaProgress       = 0;
-int otaPort           = 8266;
+int otaProgress = 0;
+int otaPort     = 8266;
 
 // TCP server
 #include "server.h"
@@ -55,6 +55,14 @@ APRS aprs;
 // NMEA
 #include "nmea.h"
 NMEA nmea;
+struct nmeaReports {
+  bool gga: 1;
+  bool rmc: 1;
+  bool gll: 1;
+  bool vtg: 1;
+  bool zda: 1;
+};
+nmeaReports nmeaReport = {1, 1, 0, 0, 0};
 
 // Set ADC to Voltage
 ADC_MODE(ADC_VCC);
@@ -432,7 +440,7 @@ void loop() {
 
     // Led on
     setLED(4);
-    
+
     // Get the time of the fix
     unsigned long utm = ntp.getSeconds();
 
@@ -483,27 +491,37 @@ void loop() {
         char bufServer[200];
         int lenServer;
         // GGA
-        lenServer = nmea.getGGA(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, 1, found);
-        Serial.print(bufServer);
-        if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-        broadcast(bufServer, lenServer);
+        if (nmeaReport.gga) {
+          lenServer = nmea.getGGA(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, 1, found);
+          Serial.print(bufServer);
+          if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+          broadcast(bufServer, lenServer);
+        }
         // RMC
-        lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
-        Serial.print(bufServer);
-        if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-        broadcast(bufServer, lenServer);
+        if (nmeaReport.gga) {
+          lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
+          Serial.print(bufServer);
+          if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+          broadcast(bufServer, lenServer);
+        }
         // GLL
-        //lenServer = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
-        //Serial.print(bufServer);
-        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+        if (nmeaReport.gll) {
+          lenServer = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
+          Serial.print(bufServer);
+          if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+        }
         // VTG
-        //lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
-        //Serial.print(bufServer);
-        //if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+        if (nmeaReport.vtg) {
+          lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
+          Serial.print(bufServer);
+          if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+        }
         // ZDA
-        //lenServer = nmea.getZDA(bufServer, 200, utm);
-        //Serial.print(bufServer);
-        //if (nmeaClients) nmeaServer.sendAll(bufServer);
+        if (nmeaReport.zda) {
+          lenServer = nmea.getZDA(bufServer, 200, utm);
+          Serial.print(bufServer);
+          if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+        }
 
         // Read the Vcc (mV)
         int vcc  = ESP.getVcc();
