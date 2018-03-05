@@ -1,10 +1,10 @@
 /**
-  WiFi APRS Tracker - Automated Position Reporting System based on Wifi
-                      geolocation, using Mozilla Location Services
+  WiPS - Wireless Positioning System and Automated Position Reporting System
+         based on Wifi geolocation, using Mozilla Location Services.
 
   Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
 
-  This file is part of WiFi_APRS_Tracker.
+  This file is part of WiPS.
 */
 
 // True if the tracker is being probed
@@ -32,8 +32,8 @@ int otaPort     = 8266;
 
 // TCP server
 #include "server.h"
-// NMEA server
-TCPServer nmeaServer(10110);  // NMEA-0183 Navigational Data
+// NMEA-0183 Navigational Data Server
+TCPServer nmeaServer(10110);
 
 // UDP Broadcast
 WiFiUDP   bcastUDP;

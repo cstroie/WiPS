@@ -3,7 +3,7 @@
 
   Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
 
-  This file is part of WiFi_APRS_Tracker.
+  This file is part of WiPS.
 */
 
 #include "Arduino.h"
