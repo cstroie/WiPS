@@ -332,8 +332,8 @@ void setup() {
   pinMode(LED, OUTPUT);
   setLED(0);
 
-  // Try to connect, indefinitely
-  if (not wifiConnect()) ESP.restart();
+  // Try to connect, for ever
+  while (not wifiConnect());
 
   // OTA Update
   ArduinoOTA.setPort(otaPort);
