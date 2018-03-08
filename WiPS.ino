@@ -36,9 +36,9 @@ bool PROBE = true;
 #include <WiFiManager.h>
 
 #ifdef WIFI_SSIDPASS
-char wifiSP[] = WIFI_SSIDPASS;
-const char wifiRS[] = WIFI_RS;
-const char wifiFS[] = WIFI_FS;
+char wifiSP[] PROGMEM = WIFI_SSIDPASS;
+char wifiRS           = WIFI_RS;
+char wifiFS           = WIFI_FS;
 #endif
 
 // OTA
@@ -240,24 +240,36 @@ bool wifiTryConnect(char* ssid = NULL, char* pass = NULL, int timeout = 15) {
 
 bool wifiKnownNetworks() {
   if (strlen(wifiSP)) {
+    char ssid[WL_SSID_MAX_LENGTH]    = "";
+    char pass[WL_WPA_KEY_MAX_LENGTH] = "";
 
-    char *rs = strstr(wifiSP, wifiRS);
+
+
+    char *f1 = wifiSP;
+    char *f2 = wifiSP;
+    // Find the record separator
+    char *rs = strchr_P(wifiSP, wifiRS);
     while (rs != NULL) {
       // Put \0 in the place of separator
-      *rs = 0;
-      Serial.println((char*)rs);
+      //*rs = 0;
 
-      char *fs = strstr(rs, wifiFS);
-      while (fs != NULL) {
+      char *fs = strchr_P(f1, wifiFS);
+      if (fs != NULL) {
         // Put \0 in the place of separator
         *fs = 0;
-        Serial.println((char*)fs);
+        f2 = fs + 1;
 
-        fs = strstr(fs + strlen(wifiFS), wifiFS);
+        strncpy_P(ssid, f1, fs - f1)
+        ssid[fs - f1] = 0;
+        strncpy_P(pass, f2, rs - f2)
+        pass[rs - f2] = 0;
+        Serial.println(ssid);
+        Serial.println(pass);
       }
 
 
-      rs = strstr(rs + strlen(wifiRS), wifiRS);
+      f1 = rs + 1;
+      rs = strchr_P(f1, wifiRS);
     }
 
     /*
