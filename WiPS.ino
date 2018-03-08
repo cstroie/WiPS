@@ -4,7 +4,18 @@
 
   Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
 
-  This file is part of WiPS.
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 // True if the tracker is being probed
@@ -86,6 +97,7 @@ unsigned long rpDelayMax  = 1800; // Maximum delay between reporting
 int sAcc = -1;
 int sCrs = -1;
 
+
 /**
   Convert IPAddress to char array
 */
@@ -131,7 +143,7 @@ void setLED(int load) {
   TODO
 */
 bool tryWPSPBC() {
-  Serial.println("WPS config start");
+  Serial.println(F("$PWIFI,WPS config start"));
   bool wpsSuccess = WiFi.beginWPSConfig();
   if (wpsSuccess) {
     // Well this means not always success :-/ in case of a timeout we have an empty ssid
@@ -333,6 +345,12 @@ bool wifiConnect(int timeout = 300) {
 #else
   // Try to connect to the last known AP
   if (WiFi.status() != WL_CONNECTED) {
+    // Keep the saved credentials
+    char savedSSID[WL_SSID_MAX_LENGTH];
+    char savedPSK[WL_WPA_KEY_MAX_LENGTH];
+    strncpy(savedSSID, WiFi.SSID().c_str(), WL_SSID_MAX_LENGTH);
+    strncpy(savedPSK, WiFi.psk().c_str(), WL_WPA_KEY_MAX_LENGTH);
+    // Try to connect with saved credentials
     if (not wifiTryConnect()) {
       // Try the known networks
       if (not wifiKnownNetworks()) {
@@ -345,6 +363,10 @@ bool wifiConnect(int timeout = 300) {
           setLED(10);
           if (not wifiManager.startConfigPortal(NODENAME)) {
             setLED(2);
+            // Restore the saved credentials, not persistent
+            WiFi.persistent(false);
+            WiFi.begin(savedSSID, savedPSK);
+            WiFi.persistent(true);
           }
         }
       }
@@ -380,13 +402,16 @@ void setup() {
   // Compose the NMEA welcome message
   nmea.getWelcome(NODENAME, VERSION);
   Serial.print(nmea.welcome);
+  Serial.print(F("$PGPL3,This program comes with ABSOLUTELY NO WARRANTY.\r\n"));
+  Serial.print(F("$PGPL3,This is free software, and you are welcome \r\n"));
+  Serial.print(F("$PGPL3,to redistribute it under certain conditions.\r\n"));
 
   // Initialize the LED pin as an output
   pinMode(LED, OUTPUT);
   setLED(0);
 
-  // Try to connect, indefinitely
-  if (not wifiConnect()) ESP.restart();
+  // Try to connect, for ever
+  while (not wifiConnect(60));
 
   // OTA Update
   ArduinoOTA.setPort(otaPort);
@@ -396,11 +421,11 @@ void setup() {
 #endif
 
   ArduinoOTA.onStart([]() {
-    Serial.print("$POTA,START\r\n");
+    Serial.print(F("$POTA,START\r\n"));
   });
 
   ArduinoOTA.onEnd([]() {
-    Serial.print("\r\n$POTA,FINISHED\r\n");
+    Serial.print(F("\r\n$POTA,FINISHED\r\n"));
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -426,7 +451,7 @@ void setup() {
   });
 
   ArduinoOTA.begin();
-  Serial.print("$POTA,READY\r\n");
+  Serial.print(F("$POTA,READY\r\n"));
 
   // Configure NTP
   ntp.init(NTP_SERVER);
@@ -442,7 +467,7 @@ void setup() {
 
   // Hardware data
   int hwVcc  = ESP.getVcc();
-  Serial.print("$PHWMN,VCC,");
+  Serial.print(F("$PHWMN,VCC,"));
   Serial.print((float)hwVcc / 1000, 3);
   Serial.print("\r\n");
 
@@ -457,7 +482,7 @@ void setup() {
   // - second argument is the IP address to advertise
   //   we send our IP address on the WiFi network
   if (!MDNS.begin(nodename))
-    Serial.print("$PMDNS,ERROR\r\n");
+    Serial.print(F("$PMDNS,ERROR\r\n"));
 
   // Start NMEA TCP server
   nmeaServer.init("nmea-0183", nmea.welcome);
@@ -498,7 +523,7 @@ void loop() {
     unsigned long utm = ntp.getSeconds();
 
     // Scan the WiFi access points
-    Serial.print("$PSCAN,WIFI,");
+    Serial.print(F("$PSCAN,WIFI,"));
     int found = mls.wifiScan(false);
 
     // Get the coordinates
@@ -653,7 +678,7 @@ void loop() {
       // No WiFi networks
       Serial.print(F("0"));
       Serial.print(","); Serial.print(ntp.getSeconds() - utm);
-      Serial.print(F("\r\n"));
+      Serial.print("\r\n");
       // Repeat the geolocation now
       geoNextTime = now;
     }
