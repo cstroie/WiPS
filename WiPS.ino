@@ -91,6 +91,7 @@ unsigned long rpDelayMax  = 1800; // Maximum delay between reporting
 int sAcc = -1;
 int sCrs = -1;
 
+
 /**
   Convert IPAddress to char array
 */
@@ -136,7 +137,7 @@ void setLED(int load) {
   TODO
 */
 bool tryWPSPBC() {
-  Serial.println("WPS config start");
+  Serial.println(F("$PWIFI,WPS config start"));
   bool wpsSuccess = WiFi.beginWPSConfig();
   if (wpsSuccess) {
     // Well this means not always success :-/ in case of a timeout we have an empty ssid
@@ -348,6 +349,9 @@ void setup() {
   // Compose the NMEA welcome message
   nmea.getWelcome(NODENAME, VERSION);
   Serial.print(nmea.welcome);
+  Serial.print(F("$PGPL3,This program comes with ABSOLUTELY NO WARRANTY.\r\n"));
+  Serial.print(F("$PGPL3,This is free software, and you are welcome \r\n"));
+  Serial.print(F("$PGPL3,to redistribute it under certain conditions.\r\n"));
 
   // Initialize the LED pin as an output
   pinMode(LED, OUTPUT);
@@ -364,11 +368,11 @@ void setup() {
 #endif
 
   ArduinoOTA.onStart([]() {
-    Serial.print("$POTA,START\r\n");
+    Serial.print(F("$POTA,START\r\n"));
   });
 
   ArduinoOTA.onEnd([]() {
-    Serial.print("\r\n$POTA,FINISHED\r\n");
+    Serial.print(F("\r\n$POTA,FINISHED\r\n"));
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -394,7 +398,7 @@ void setup() {
   });
 
   ArduinoOTA.begin();
-  Serial.print("$POTA,READY\r\n");
+  Serial.print(F("$POTA,READY\r\n"));
 
   // Configure NTP
   ntp.init(NTP_SERVER);
@@ -410,7 +414,7 @@ void setup() {
 
   // Hardware data
   int hwVcc  = ESP.getVcc();
-  Serial.print("$PHWMN,VCC,");
+  Serial.print(F("$PHWMN,VCC,"));
   Serial.print((float)hwVcc / 1000, 3);
   Serial.print("\r\n");
 
@@ -425,7 +429,7 @@ void setup() {
   // - second argument is the IP address to advertise
   //   we send our IP address on the WiFi network
   if (!MDNS.begin(nodename))
-    Serial.print("$PMDNS,ERROR\r\n");
+    Serial.print(F("$PMDNS,ERROR\r\n"));
 
   // Start NMEA TCP server
   nmeaServer.init("nmea-0183", nmea.welcome);
@@ -466,7 +470,7 @@ void loop() {
     unsigned long utm = ntp.getSeconds();
 
     // Scan the WiFi access points
-    Serial.print("$PSCAN,WIFI,");
+    Serial.print(F("$PSCAN,WIFI,"));
     int found = mls.wifiScan(false);
 
     // Get the coordinates
@@ -621,7 +625,7 @@ void loop() {
       // No WiFi networks
       Serial.print(F("0"));
       Serial.print(","); Serial.print(ntp.getSeconds() - utm);
-      Serial.print(F("\r\n"));
+      Serial.print("\r\n");
       // Repeat the geolocation now
       geoNextTime = now;
     }
