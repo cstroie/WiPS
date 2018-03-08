@@ -283,6 +283,12 @@ bool wifiConnect(int timeout = 300) {
 #else
   // Try to connect to the last known AP
   if (WiFi.status() != WL_CONNECTED) {
+    // Keep the saved credentials
+    char savedSSID[WL_SSID_MAX_LENGTH];
+    char savedPSK[WL_WPA_KEY_MAX_LENGTH];
+    strncpy(savedSSID, WiFi.SSID().c_str(), WL_SSID_MAX_LENGTH);
+    strncpy(savedPSK, WiFi.psk().c_str(), WL_WPA_KEY_MAX_LENGTH);
+    // Try to connect with saved credentials
     if (not wifiTryConnect()) {
       // Try the open networks
       if (not wifiOpenNetworks()) {
@@ -293,6 +299,10 @@ bool wifiConnect(int timeout = 300) {
         setLED(10);
         if (not wifiManager.startConfigPortal(NODENAME)) {
           setLED(2);
+          // Restore the saved credentials, not persistent
+          WiFi.persistent(false);
+          WiFi.begin(savedSSID, savedPSK);
+          WiFi.persistent(true);
         }
       }
     }
@@ -333,7 +343,7 @@ void setup() {
   setLED(0);
 
   // Try to connect, for ever
-  while (not wifiConnect());
+  while (not wifiConnect(60));
 
   // OTA Update
   ArduinoOTA.setPort(otaPort);
