@@ -121,13 +121,12 @@ void showWiFi() {
     charIP(WiFi.dnsIP(),     nsbuf, sizeof(nsbuf), false);
 
     // Print
-    Serial.printf("$PWIFI,CON,%s,%d,%ddBm,%s,%s,%s\r\n",
-                  WiFi.SSID().c_str(), WiFi.channel(), WiFi.RSSI(),
-                  ipbuf, gwbuf, nsbuf);
+    Serial.printf_P(PSTR("$PWIFI,CON,%s,%d,%ddBm,%s,%s,%s\r\n"),
+                    WiFi.SSID().c_str(), WiFi.channel(), WiFi.RSSI(),
+                    ipbuf, gwbuf, nsbuf);
   }
-  else {
-    Serial.print("$PWIFI,ERR\r\n");
-  }
+  else
+    Serial.print(F("$PWIFI,ERR\r\n"));
 }
 
 /**
@@ -143,17 +142,17 @@ void setLED(int load) {
   TODO
 */
 bool tryWPSPBC() {
-  Serial.println(F("$PWIFI,WPS config start"));
+  Serial.print(F("$PWIFI,WPS,START\r\n"));
   bool wpsSuccess = WiFi.beginWPSConfig();
   if (wpsSuccess) {
     // Well this means not always success :-/ in case of a timeout we have an empty ssid
     String newSSID = WiFi.SSID();
     if (newSSID.length() > 0) {
       // WPSConfig has already connected in STA mode successfully to the new station.
-      Serial.printf("WPS finished. Connected successfull to SSID '%s'\n", newSSID.c_str());
-    } else {
-      wpsSuccess = false;
+      Serial.printf_P(PSTR("$PWIFI,WPS,%s\r\n"), newSSID.c_str());
     }
+    else
+      wpsSuccess = false;
   }
   return wpsSuccess;
 }
@@ -169,7 +168,7 @@ bool wifiCheckHTTP(int timeout = 10000, char* server = "www.google.com", int por
   testClient.setTimeout(timeout);
   char buf[64] = "";
   if (testClient.connect(server, port)) {
-    Serial.printf("$PHTTP,CON,%s,%d\r\n", server, port);
+    Serial.printf_P(PSTR("$PHTTP,CON,%s,%d\r\n"), server, port);
     // Send a request
     testClient.print("HEAD / HTTP/1.0\r\n\r\n");
     // Check the response
@@ -177,15 +176,15 @@ bool wifiCheckHTTP(int timeout = 10000, char* server = "www.google.com", int por
     if (rlen > 0) {
       buf[rlen] = '\0';
       result = true;
-      Serial.printf("$PHTTP,RSP,%s\r\n", buf);
+      Serial.printf_P(PSTR("$PHTTP,RSP,%s\r\n"), buf);
     }
     else
-      Serial.printf("$PHTTP,DIS,%s,%d\r\n", server, port);
+      Serial.printf_P(PSTR("$PHTTP,DIS,%s,%d\r\n"), server, port);
     // Stop the test
     testClient.stop();
   }
   else
-    Serial.printf("$PHTTP,ERR,%s,%d\r\n", server, port);
+    Serial.printf_P(PSTR("$PHTTP,ERR,%s,%d\r\n"), server, port);
   return result;
 }
 
@@ -219,7 +218,7 @@ bool wifiTryConnect(char* ssid = NULL, char* pass = NULL, int timeout = 15) {
   }
 
   // Try to connect
-  Serial.printf("$PWIFI,BGN,%s\r\n", _ssid);
+  Serial.printf_P(PSTR("$PWIFI,BGN,%s\r\n"), _ssid);
   // Different calls for different configurations
   if (ssid == NULL) WiFi.begin();
   else              WiFi.begin(_ssid, pass);
@@ -227,7 +226,7 @@ bool wifiTryConnect(char* ssid = NULL, char* pass = NULL, int timeout = 15) {
   int tries = 0;
   while (!WiFi.isConnected() and tries < timeout) {
     tries++;
-    Serial.printf("$PWIFI,TRY,%d/%d,%s\r\n", tries, timeout, _ssid);
+    Serial.printf_P(PSTR("$PWIFI,TRY,%d/%d,%s\r\n"), tries, timeout, _ssid);
     delay(1000);
   };
   // Check the internet connection
@@ -314,7 +313,8 @@ bool wifiKnownNetworks() {
   Feedback notification when SoftAP is started
 */
 void wifiCallback(WiFiManager * wifiMgr) {
-  Serial.printf("$PWIFI,SRV,%s\r\n", wifiMgr->getConfigPortalSSID().c_str());
+  Serial.printf_P(PSTR("$PWIFI,SRV,%s\r\n"),
+                  wifiMgr->getConfigPortalSSID().c_str());
   setLED(10);
 }
 
@@ -336,7 +336,7 @@ bool wifiOpenNetworks() {
       if (WiFi.encryptionType(i) == ENC_TYPE_NONE) {
         // Keep the SSID
         strncpy(ssid, WiFi.SSID(i).c_str(), WL_SSID_MAX_LENGTH);
-        Serial.printf("$PWIFI,OPN,%s\r\n", ssid);
+        Serial.printf_P(PSTR("$PWIFI,OPN,%s\r\n"), ssid);
         // Try to connect to wifi
         if (wifiTryConnect(ssid)) {
           // Check the internet connection
@@ -410,7 +410,8 @@ bool wifiConnect(int timeout = 300) {
 void broadcast(char *buf, size_t len) {
   // Find the broadcast IP
   bcastIP = ~ WiFi.subnetMask() | WiFi.gatewayIP();
-  //Serial.printf("$PBCST,%u,%d.%d.%d.%d\r\n", bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
+  //Serial.printf_P(PSTR("$PBCST,%u,%d.%d.%d.%d\r\n"),
+  //                bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
   // Send the packet
   bcastUDP.beginPacket(bcastIP, bcastPort);
   bcastUDP.write(buf, len);
@@ -457,12 +458,12 @@ void setup() {
     int otaPrg = progress / (total / 100);
     if (otaProgress != otaPrg) {
       otaProgress = otaPrg;
-      Serial.printf("$POTA,PROGRESS,%u%%\r\n", otaProgress * 100);
+      Serial.printf_P(PSTR("$POTA,PROGRESS,%u%%\r\n"), otaProgress * 100);
     }
   });
 
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("$POTA,ERROR,%u,", error);
+    Serial.printf_P(PSTR("$POTA,ERROR,%u,"), error);
     if (error == OTA_AUTH_ERROR)
       Serial.print(F("Auth Failed\r\n"));
     else if (error == OTA_BEGIN_ERROR)
@@ -499,7 +500,7 @@ void setup() {
   // Initialize the random number generator and set the APRS telemetry start sequence
   randomSeed(ntp.getSeconds(false) + hwVcc + millis());
   aprs.aprsTlmSeq = random(1000);
-  Serial.printf("$PHWMN,TLM,%d\r\n", aprs.aprsTlmSeq);
+  Serial.printf_P(PSTR("$PHWMN,TLM,%d\r\n"), aprs.aprsTlmSeq);
 
   // Set up mDNS responder:
   // - first argument is the domain name, in this example
@@ -650,14 +651,17 @@ void loop() {
               // Local buffer, max comment length is 43 bytes
               char buf[45] = "";
               // Prepare the comment
-              snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Crs:%s Vcc:%d.%d RSSI:%d"), acc, (int)(mls.distance), (int)(3.6 * mls.speed), mls.getCardinal(sCrs), vcc / 1000, (vcc % 1000) / 100, rssi);
+              snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Crs:%s Vcc:%d.%d RSSI:%d"),
+                         acc, (int)(mls.distance), (int)(3.6 * mls.speed), mls.getCardinal(sCrs),
+                         vcc / 1000, (vcc % 1000) / 100, rssi);
               // Report course and speed
               aprs.sendPosition(utm, mls.current.latitude, mls.current.longitude, sCrs, mls.knots, -1, buf);
               // Send the telemetry
               //   mls.speed / 0.0008 = mls.speed * 1250
               aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed * 1250)), aprs.aprsTlmBits);
               // Send the status
-              //snprintf_P(buf, sizeof(buf), PSTR("%s/%s, Vcc: %d.%3dV, RSSI: %ddBm"), NODENAME, VERSION, vcc / 1000, vcc % 1000, rssi);
+              //snprintf_P(buf, sizeof(buf), PSTR("%s/%s, Vcc: %d.%3dV, RSSI: %ddBm"),
+              //           NODENAME, VERSION, vcc / 1000, vcc % 1000, rssi);
               //aprs.sendStatus(buf);
               // Adjust the delay (aka SmartBeaconing)
               if (moving) {

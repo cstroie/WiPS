@@ -61,8 +61,8 @@ void NTP::setTZ(float tz) {
 */
 void NTP::report(unsigned long utm) {
   datetime_t dt = getDateTime(utm);
-  Serial.printf("$PNTPC,0x%08X,%d.%02d.%02d,%02d.%02d.%02d\r\n",
-                utm, dt.yy + 2000, dt.ll, dt.dd, dt.hh, dt.mm, dt.ss);
+  Serial.printf_P(PSTR("$PNTPC,0x%08X,%d.%02d.%02d,%02d.%02d.%02d\r\n"),
+                  utm, dt.yy + 2000, dt.ll, dt.dd, dt.hh, dt.mm, dt.ss);
 }
 
 /**

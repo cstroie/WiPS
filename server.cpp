@@ -38,7 +38,8 @@ void TCPServer::init(const char *serverName, const char *welcome) {
   wlcm[sizeof(wlcm) - 1] = '\0';
   // Configure mDNS
   MDNS.addService((const char*)name, "tcp", (int)port);
-  Serial.printf("$PMDNS,%s,%u,TCP,%u\r\n", name, MAX_CLIENTS, port);
+  Serial.printf_P(PSTR("$PMDNS,%s,%u,TCP,%u\r\n"),
+                  name, MAX_CLIENTS, port);
   // Start the TCP server
   begin();
   setNoDelay(true);
@@ -60,14 +61,15 @@ int TCPServer::check() {
           // Force disconnecting the stalled server
           TCPClient[i].stop();
           clients--;
-          Serial.printf("$PSRVD,%s,%u,%u\r\n", name, clients, i);
+          Serial.printf_P(PSTR("$PSRVD,%s,%u,%u\r\n"), name, clients, i);
         }
         // Create a new server connection
         TCPClient[i] = available();
         clients++;
         // Report the new connection
         IPAddress ip = TCPClient[i].remoteIP();
-        Serial.printf("$PSRVC,%s,%u,%u,%d.%d.%d.%d\r\n", name, clients, i, ip[0], ip[1], ip[2], ip[3]);
+        Serial.printf_P(PSTR("$PSRVC,%s,%u,%u,%d.%d.%d.%d\r\n"),
+                        name, clients, i, ip[0], ip[1], ip[2], ip[3]);
         // Send the welcome message
         TCPClient[i].print(wlcm);
         break;
@@ -78,7 +80,8 @@ int TCPServer::check() {
       WiFiClient rejected = available();
       // Report connection
       IPAddress ip = rejected.remoteIP();
-      Serial.printf("$PSRVR,%s,%u,%u,%d.%d.%d.%d\r\n", name, clients, i, ip[0], ip[1], ip[2], ip[3]);
+      Serial.printf_P(PSTR("$PSRVR,%s,%u,%u,%d.%d.%d.%d\r\n"),
+                      name, clients, i, ip[0], ip[1], ip[2], ip[3]);
       rejected.stop();
     }
   }

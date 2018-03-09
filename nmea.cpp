@@ -39,7 +39,7 @@ int NMEA::getWelcome(const char* name, const char* vers) {
   strcat(welcome, __DATE__);
   // Checksum
   char ckbuf[8] = "";
-  sprintf(ckbuf, "*%02X\r\n", checksum(welcome));
+  sprintf_P(ckbuf, PSTR("*%02X\r\n"), checksum(welcome));
   strcat(welcome, ckbuf);
   return strlen(welcome);
 }
@@ -122,7 +122,7 @@ int NMEA::getGGA(char *buf, size_t len, unsigned long utm, float lat, float lng,
              fix, sat);
   // Checksum
   char ckbuf[8] = "";
-  sprintf(ckbuf, "*%02X\r\n", checksum(buf));
+  sprintf_P(ckbuf, PSTR("*%02X\r\n"), checksum(buf));
   strcat(buf, ckbuf);
   return strlen(buf);
 }
@@ -146,7 +146,7 @@ int NMEA::getRMC(char *buf, size_t len, unsigned long utm, float lat, float lng,
              dd, ll, yy);
   // Checksum
   char ckbuf[8] = "";
-  sprintf(ckbuf, "*%02X\r\n", checksum(buf));
+  sprintf_P(ckbuf, PSTR("*%02X\r\n"), checksum(buf));
   strcat(buf, ckbuf);
   return strlen(buf);
 }
@@ -168,7 +168,7 @@ int NMEA::getGLL(char *buf, size_t len, unsigned long utm, float lat, float lng)
              hh, mm, ss);
   // Checksum
   char ckbuf[8] = "";
-  sprintf(ckbuf, "*%02X\r\n", checksum(buf));
+  sprintf_P(ckbuf, PSTR("*%02X\r\n"), checksum(buf));
   strcat(buf, ckbuf);
   return strlen(buf);
 }
@@ -183,7 +183,7 @@ int NMEA::getVTG(char *buf, size_t len, int crs, int knots, int kmh) {
              crs > 0 ? crs : 0, knots, kmh);
   // Checksum
   char ckbuf[8] = "";
-  sprintf(ckbuf, "*%02X\r\n", checksum(buf));
+  sprintf_P(ckbuf, PSTR("*%02X\r\n"), checksum(buf));
   strcat(buf, ckbuf);
   return strlen(buf);
 }
@@ -201,7 +201,7 @@ int NMEA::getZDA(char *buf, size_t len, unsigned long utm) {
              hh, mm, ss, dd, ll, yy + 2000);
   // Checksum
   char ckbuf[8] = "";
-  sprintf(ckbuf, "*%02X\r\n", checksum(buf));
+  sprintf_P(ckbuf, PSTR("*%02X\r\n"), checksum(buf));
   strcat(buf, ckbuf);
   return strlen(buf);
 }
