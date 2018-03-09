@@ -36,9 +36,9 @@ bool PROBE = true;
 #include <WiFiManager.h>
 
 #ifdef WIFI_SSIDPASS
-char wifiSP[] PROGMEM = WIFI_SSIDPASS;
-char wifiRS           = WIFI_RS;
-char wifiFS           = WIFI_FS;
+static const char wifiSP[] PROGMEM = WIFI_SSIDPASS;
+const char *wifiRS          = WIFI_RS;
+const char *wifiFS          = WIFI_FS;
 #endif
 
 // OTA
@@ -238,58 +238,76 @@ bool wifiTryConnect(char* ssid = NULL, char* pass = NULL, int timeout = 15) {
   return result;
 }
 
+/**
+  Try to connect to a list of known wifi networks
+
+  @result connection result to a known WiFi
+*/
 bool wifiKnownNetworks() {
-  if (strlen(wifiSP)) {
-    char ssid[WL_SSID_MAX_LENGTH]    = "";
-    char pass[WL_WPA_KEY_MAX_LENGTH] = "";
+  bool result = false;
+  if (strlen_P(wifiSP) > 0) {
+    // Scan the networks
+    int netCount = WiFi.scanNetworks();
+    if (netCount > 0) {
+      // Temporary buffers for SSID, password and credentials list
+      char ssid[WL_SSID_MAX_LENGTH]    = "";
+      char pass[WL_WPA_KEY_MAX_LENGTH] = "";
+      char sspa[250] = "";
+      // Copy the credentials to RAM
+      strncpy_P(sspa, wifiSP, 250);
 
+      char *f1, *f2;
+      f1 = sspa;
 
-
-    char *f1 = wifiSP;
-    char *f2 = wifiSP;
-    // Find the record separator
-    char *rs = strchr_P(wifiSP, wifiRS);
-    while (rs != NULL) {
-      // Put \0 in the place of separator
-      //*rs = 0;
-
-      char *fs = strchr_P(f1, wifiFS);
-      if (fs != NULL) {
-        // Put \0 in the place of separator
-        *fs = 0;
-        f2 = fs + 1;
-
-        strncpy_P(ssid, f1, fs - f1)
-        ssid[fs - f1] = 0;
-        strncpy_P(pass, f2, rs - f2)
-        pass[rs - f2] = 0;
-        Serial.println(ssid);
-        Serial.println(pass);
+      // Find the record separator
+      char *rs = strstr(f1, wifiRS);
+      // While valid...
+      while (rs != NULL) {
+        // Find the field separator
+        char *fs = strstr(f1, wifiFS);
+        if (fs != NULL) {
+          f2 = fs + strlen(wifiFS);
+          // Check for valid lenghts
+          if ((fs - f1 <= WL_SSID_MAX_LENGTH) and
+              (rs - f2 <= WL_WPA_KEY_MAX_LENGTH)) {
+            // Make a copy of SSID and password and maake sure
+            // they are null terminated
+            strncpy(ssid, f1, fs - f1); ssid[fs - f1] = 0;
+            strncpy(pass, f2, rs - f2); pass[rs - f2] = 0;
+            // Check if we know any network
+            for (size_t i = 1; i < netCount; i++) {
+              // Check if we the SSID match
+              if ((strncmp(ssid, WiFi.SSID(i).c_str(), WL_SSID_MAX_LENGTH) == 0) and
+                  (strlen(ssid) == strlen(WiFi.SSID(i).c_str()))) {
+                // Try to connect to wifi
+                if (wifiTryConnect(ssid, pass)) {
+                  // Check the internet connection
+                  if (wifiCheckHTTP()) {
+                    yield();
+                    result = true;
+                    break;
+                  }
+                }
+              }
+              yield();
+            }
+          }
+        }
+        if (result) break;
+        // Find the next record separator
+        f1 = rs + strlen(wifiRS);
+        rs = strstr(f1, wifiRS);
+        // If null, maybe it's because the list ends with no RS
+        if (rs == NULL and f1 < sspa + strlen(sspa))
+          rs = sspa + strlen(sspa);
+        yield();
       }
-
-
-      f1 = rs + 1;
-      rs = strchr_P(f1, wifiRS);
     }
-
-    /*
-      // Split the SSID/PASS string, using the Record Separator
-      char* rec, f1, f2;
-      rec = strtok(wifiSP, wifiRS);
-      while (rec != NULL) {
-      Serial.printf("%s\r\n", rec);
-
-      //f1 = strtok(rec, wifiFS);
-      //if (f1 != NULL)
-      //  f2 = strtok(NULL, wifiFS);
-
-      Serial.printf("%s\r\n", f1);
-      Serial.printf("%s\r\n", f2);
-
-      rec = strtok (NULL, wifiRS);
-      }
-    */
   }
+  // Clear the scan results
+  WiFi.scanDelete();
+  // Return the result
+  return result;
 }
 
 /**
@@ -323,11 +341,13 @@ bool wifiOpenNetworks() {
         if (wifiTryConnect(ssid)) {
           // Check the internet connection
           if (wifiCheckHTTP()) {
+            yield();
             result = true;
             break;
           }
         }
       }
+      yield();
     }
   }
   // Clear the scan results
@@ -348,8 +368,6 @@ bool wifiConnect(int timeout = 300) {
   WiFi.mode(WIFI_STA);
   // Led ON
   setLED(1);
-
-  wifiKnownNetworks();
 
   // Try to connect to WiFi
 #ifdef WIFI_SSID
@@ -373,13 +391,8 @@ bool wifiConnect(int timeout = 300) {
           wifiManager.setTimeout(timeout);
           wifiManager.setAPCallback(wifiCallback);
           setLED(10);
-          if (not wifiManager.startConfigPortal(NODENAME)) {
+          if (not wifiManager.startConfigPortal(NODENAME))
             setLED(2);
-            // Restore the saved credentials, not persistent
-            WiFi.persistent(false);
-            WiFi.begin(savedSSID, savedPSK);
-            WiFi.persistent(true);
-          }
         }
       }
     }
@@ -423,7 +436,7 @@ void setup() {
   setLED(0);
 
   // Try to connect, for ever
-  while (not wifiConnect(60));
+  while (not wifiConnect(300));
 
   // OTA Update
   ArduinoOTA.setPort(otaPort);
