@@ -655,7 +655,7 @@ void loop() {
                          acc, (int)(mls.distance), (int)(3.6 * mls.speed), mls.getCardinal(sCrs),
                          vcc / 1000, (vcc % 1000) / 100, rssi);
               // Report course and speed
-              aprs.sendPosition(utm, mls.current.latitude, mls.current.longitude, sCrs, mls.knots, -1, buf);
+              aprs.sendPosition(utm, mls.current.latitude, mls.current.longitude, sCrs, mls.knots, acc, buf);
               // Send the telemetry
               //   mls.speed / 0.0008 = mls.speed * 1250
               aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed * 1250)), aprs.aprsTlmBits);
