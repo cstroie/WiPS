@@ -502,14 +502,6 @@ void setup() {
   aprs.aprsTlmSeq = random(1000);
   Serial.printf_P(PSTR("$PHWMN,TLM,%d\r\n"), aprs.aprsTlmSeq);
 
-  // Set up mDNS responder:
-  // - first argument is the domain name, in this example
-  //   the fully-qualified domain name is "esp8266.local"
-  // - second argument is the IP address to advertise
-  //   we send our IP address on the WiFi network
-  if (!MDNS.begin(nodename))
-    Serial.print(F("$PMDNS,ERROR\r\n"));
-
   // Start NMEA TCP server
   nmeaServer.init("nmea-0183", nmea.welcome);
 }
