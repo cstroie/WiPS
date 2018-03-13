@@ -6,7 +6,7 @@
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
+  the Free Software Foundation, either version 3 of the License, orl
   (at your option) any later version.
 
   This program is distributed in the hope that it will be useful,
@@ -550,7 +550,7 @@ void loop() {
       setLED(6);
       Serial.print(found);
       Serial.print(","); Serial.print(ntp.getSeconds() - utm);
-      Serial.print("\r\n");
+      Serial.print("s\r\n");
 
       // Geolocate
       int acc = mls.geoLocation();
@@ -564,11 +564,10 @@ void loop() {
       if (mls.current.valid) {
         // Report
         Serial.print(F("$PSCAN,FIX,"));
-        Serial.print(mls.current.latitude, 6);
-        Serial.print(",");
-        Serial.print(mls.current.longitude, 6);
-        Serial.print(","); Serial.print(acc);
-        Serial.print(","); Serial.print(ntp.getSeconds() - utm);
+        Serial.print(mls.current.latitude, 6);  Serial.print(",");
+        Serial.print(mls.current.longitude, 6); Serial.print(",");
+        Serial.print(acc);                      Serial.print("m,");
+        Serial.print(ntp.getSeconds() - utm);   Serial.print("s");
 
         // Check if moving
         bool moving = mls.getMovement() >= (sAcc >> 2);
@@ -577,9 +576,10 @@ void loop() {
           if (sCrs < 0) sCrs = mls.bearing;
           else          sCrs = ((sCrs + (mls.bearing << 2) - mls.bearing) + 2) >> 2;
           // Report
-          Serial.print(","); Serial.print(mls.distance, 2);
-          Serial.print(","); Serial.print(mls.speed, 2);
-          Serial.print(","); Serial.print(mls.bearing);
+          Serial.print(",");
+          Serial.print(mls.distance, 2);  Serial.print("m,");
+          Serial.print(mls.speed, 2);     Serial.print("m/s,");
+          Serial.print(mls.bearing);      Serial.print("'");
         }
         Serial.print("\r\n");
 
@@ -686,20 +686,17 @@ void loop() {
           setLED(0);
         }
       }
-      else {
-        Serial.print(F("$PSCAN,NOFIX,"));
-        Serial.print(acc);
-        Serial.print(","); Serial.print(ntp.getSeconds() - utm);
-        Serial.print("\r\n");
-      }
+      else
+        Serial.printf_P(PSTR("$PSCAN,NOFIX,%dm,%ds\r\n"), acc, ntp.getSeconds() - utm);
       // Repeat the geolocation after a delay
       geoNextTime = now + geoDelay;
     }
     else {
       // No WiFi networks
       Serial.print(F("0"));
-      Serial.print(","); Serial.print(ntp.getSeconds() - utm);
-      Serial.print("\r\n");
+      Serial.print(",");
+      Serial.print(ntp.getSeconds() - utm);
+      Serial.print("s\r\n");
       // Repeat the geolocation now
       geoNextTime = now;
     }
