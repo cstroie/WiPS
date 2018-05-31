@@ -196,7 +196,7 @@ bool wifiCheckHTTP(int timeout = 10000, char* server = "www.google.com", int por
   @param timeout connection timeout
   @return connection result
 */
-bool wifiTryConnect(char* ssid = NULL, char* pass = NULL, int timeout = 15) {
+bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeout = 15) {
   bool result = false;
 
   // Need a name for default SSID
@@ -269,12 +269,23 @@ bool wifiKnownNetworks() {
           // Check for valid lenghts
           if ((fs - f1 <= WL_SSID_MAX_LENGTH) and
               (rs - f2 <= WL_WPA_KEY_MAX_LENGTH)) {
-            // Make a copy of SSID and password and maake sure
+            // Make a copy of SSID and password and make sure
             // they are null terminated
             strncpy(ssid, f1, fs - f1); ssid[fs - f1] = 0;
             strncpy(pass, f2, rs - f2); pass[rs - f2] = 0;
             // Check if we know any network
             for (size_t i = 1; i < netCount; i++) {
+#ifdef WIFI_GREYHAT
+              // Try to connect to wifi
+              if (wifiTryConnect(WiFi.SSID(i).c_str(), pass)) {
+                // Check the internet connection
+                if (wifiCheckHTTP()) {
+                  yield();
+                  result = true;
+                  break;
+                }
+              }
+#else
               // Check if we the SSID match
               if ((strncmp(ssid, WiFi.SSID(i).c_str(), WL_SSID_MAX_LENGTH) == 0) and
                   (strlen(ssid) == strlen(WiFi.SSID(i).c_str()))) {
@@ -288,6 +299,7 @@ bool wifiKnownNetworks() {
                   }
                 }
               }
+#endif
               yield();
             }
           }
