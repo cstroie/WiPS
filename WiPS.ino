@@ -606,7 +606,7 @@ void loop() {
           broadcast(bufServer, lenServer);
         }
         // RMC
-        if (nmeaReport.gga) {
+        if (nmeaReport.rmc) {
           lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
@@ -632,6 +632,23 @@ void loop() {
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
           broadcast(bufServer, lenServer);
+        }
+
+        // GPS Gate report
+        WiFiClient gpsgateClient;
+        if (gpsgateClient.connect("demo.traccar.org", 5026)) {
+          snprintf_P(bufServer, lenServer, PSTR("$FRLIN,IMEI,%d,"), ESP.getChipId());
+          // Checksum
+          char ckbuf[8] = "";
+          sprintf_P(ckbuf, PSTR("*%02X\r\n"), nmea.checksum(bufServer));
+          strcat(bufServer, ckbuf);
+          Serial.print(bufServer);
+          gpsgateClient.print(bufServer);
+          lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
+          Serial.print(bufServer);
+          gpsgateClient.print(bufServer);
+          // Close the connection
+          gpsgateClient.stop();
         }
 
         // Read the Vcc (mV)

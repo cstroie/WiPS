@@ -33,8 +33,8 @@ class NMEA {
     int           getZDA(char *buf, size_t len, unsigned long utm);
     int           getWelcome(const char* name, const char* vers);
     char          welcome[80];
-  private:
     int           checksum(const char *s);
+  private:
     void          getCoords(float lat, float lng);
     void          getTime(unsigned long utm);
     int           latDD, latMM, latFF, lngDD, lngMM, lngFF;
