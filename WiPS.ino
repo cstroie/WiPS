@@ -52,6 +52,9 @@ int otaPort     = 8266;
 // NMEA-0183 Navigational Data Server
 TCPServer nmeaServer(10110);
 
+// GPS Gate
+WiFiClient gpsgateClient;
+
 // UDP Broadcast
 WiFiUDP   bcastUDP;
 IPAddress bcastIP(0, 0, 0, 0);
@@ -516,6 +519,18 @@ void setup() {
 
   // Start NMEA TCP server
   nmeaServer.init("nmea-0183", nmea.welcome);
+
+  // GPS Gate
+  if (gpsgateClient.connect("demo.traccar.org", 5026)) {
+    char buf[40] = "";
+    snprintf_P(buf, 50, PSTR("$FRLIN,IMEI,%d,"), ESP.getChipId());
+    // Checksum
+    char ckbuf[8] = "";
+    sprintf_P(ckbuf, PSTR("*%02X\r\n"), nmea.checksum(buf));
+    strcat(buf, ckbuf);
+    Serial.print(buf);
+    gpsgateClient.print(buf);
+  }
 }
 
 /**
@@ -611,6 +626,11 @@ void loop() {
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
           broadcast(bufServer, lenServer);
+
+          if (gpsgateClient.connected()) {
+            gpsgateClient.print(bufServer);
+            gpsgateClient.flush();
+          }
         }
         // GLL
         if (nmeaReport.gll) {
@@ -632,23 +652,6 @@ void loop() {
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
           broadcast(bufServer, lenServer);
-        }
-
-        // GPS Gate report
-        WiFiClient gpsgateClient;
-        if (gpsgateClient.connect("demo.traccar.org", 5026)) {
-          snprintf_P(bufServer, lenServer, PSTR("$FRLIN,IMEI,%d,"), ESP.getChipId());
-          // Checksum
-          char ckbuf[8] = "";
-          sprintf_P(ckbuf, PSTR("*%02X\r\n"), nmea.checksum(bufServer));
-          strcat(bufServer, ckbuf);
-          Serial.print(bufServer);
-          gpsgateClient.print(bufServer);
-          lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
-          Serial.print(bufServer);
-          gpsgateClient.print(bufServer);
-          // Close the connection
-          gpsgateClient.stop();
         }
 
         // Read the Vcc (mV)
