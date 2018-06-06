@@ -254,16 +254,18 @@ bool wifiKnownNetworks() {
       char sspa[250] = "";
       // Copy the credentials to RAM
       strncpy_P(sspa, wifiSP, 250);
-
+      // The substrings/fields
       char *f1, *f2;
-      f1 = sspa;
+      char *fs, *rs;
 
+      // Start from beginning
+      f1 = sspa;
       // Find the record separator
-      char *rs = strstr(f1, wifiRS);
+      rs = strstr(f1, wifiRS);
       // While valid...
       while (rs != NULL) {
         // Find the field separator
-        char *fs = strstr(f1, wifiFS);
+        fs = strstr(f1, wifiFS);
         if (fs != NULL) {
           f2 = fs + strlen(wifiFS);
           // Check for valid lenghts
@@ -275,17 +277,6 @@ bool wifiKnownNetworks() {
             strncpy(pass, f2, rs - f2); pass[rs - f2] = 0;
             // Check if we know any network
             for (size_t i = 1; i < netCount; i++) {
-#ifdef WIFI_GREYHAT
-              // Try to connect to wifi
-              if (wifiTryConnect(WiFi.SSID(i).c_str(), pass)) {
-                // Check the internet connection
-                if (wifiCheckHTTP()) {
-                  yield();
-                  result = true;
-                  break;
-                }
-              }
-#else
               // Check if we the SSID match
               if ((strncmp(ssid, WiFi.SSID(i).c_str(), WL_SSID_MAX_LENGTH) == 0) and
                   (strlen(ssid) == strlen(WiFi.SSID(i).c_str()))) {
@@ -299,7 +290,6 @@ bool wifiKnownNetworks() {
                   }
                 }
               }
-#endif
               yield();
             }
           }
@@ -313,6 +303,50 @@ bool wifiKnownNetworks() {
           rs = sspa + strlen(sspa);
         yield();
       }
+
+#ifdef WIFI_GREYHAT
+      // Start again, this time trying all
+      f1 = sspa;
+      // Find the record separator
+      rs = strstr(f1, wifiRS);
+      // While valid...
+      while (rs != NULL) {
+        // Find the field separator
+        fs = strstr(f1, wifiFS);
+        if (fs != NULL) {
+          f2 = fs + strlen(wifiFS);
+          // Check for valid lenghts
+          if ((fs - f1 <= WL_SSID_MAX_LENGTH) and
+              (rs - f2 <= WL_WPA_KEY_MAX_LENGTH)) {
+            // Make a copy of SSID and password and make sure
+            // they are null terminated
+            strncpy(ssid, f1, fs - f1); ssid[fs - f1] = 0;
+            strncpy(pass, f2, rs - f2); pass[rs - f2] = 0;
+            // Try all the networks
+            for (size_t i = 1; i < netCount; i++) {
+              // Try to connect to wifi
+              if (wifiTryConnect(WiFi.SSID(i).c_str(), pass)) {
+                // Check the internet connection
+                if (wifiCheckHTTP()) {
+                  yield();
+                  result = true;
+                  break;
+                }
+              }
+              yield();
+            }
+          }
+        }
+        if (result) break;
+        // Find the next record separator
+        f1 = rs + strlen(wifiRS);
+        rs = strstr(f1, wifiRS);
+        // If null, maybe it's because the list ends with no RS
+        if (rs == NULL and f1 < sspa + strlen(sspa))
+          rs = sspa + strlen(sspa);
+        yield();
+      }
+#endif
     }
   }
   // Clear the scan results
