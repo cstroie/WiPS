@@ -631,6 +631,10 @@ void loop() {
             gpsgateClient.print(bufServer);
             gpsgateClient.flush();
           }
+          else {
+            gpsgateClient.stop();
+            gpsgateClient.connect("demo.traccar.org", 5026);
+          }
         }
         // GLL
         if (nmeaReport.gll) {
