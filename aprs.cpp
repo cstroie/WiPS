@@ -197,13 +197,11 @@ bool APRS::authenticate() {
     strcat_P(aprsPkt, pstrSP);
     strcat  (aprsPkt, VERSION);
     strcat_P(aprsPkt, eol);
-    // Flush the welcome message
-    aprsClient.flush();
     // Send the credentials
-    result = send(aprsPkt);
-    if (result) {
-      // Check the one-line response
-      result = aprsClient.findUntil("verified", "\r");
+    if (send(aprsPkt)) {
+      while (aprsClient.connected() and (not result))
+        // Check the response
+        result = aprsClient.findUntil("verified", "\r");
       /*
         int rlen = aprsClient.readBytesUntil('\n', aprsPkt, sizeof(aprsPkt));
         aprsPkt[rlen] = '\0';
