@@ -26,6 +26,7 @@ class NMEA {
   public:
     NMEA();
     void          init();
+    int           checksum(const char *s);
     int           getGGA(char *buf, size_t len, unsigned long utm, float lat, float lng, int fix, int sat);
     int           getRMC(char *buf, size_t len, unsigned long utm, float lat, float lng, int spd, int crs);
     int           getGLL(char *buf, size_t len, unsigned long utm, float lat, float lng);
@@ -34,7 +35,6 @@ class NMEA {
     int           getWelcome(const char* name, const char* vers);
     char          welcome[80];
   private:
-    int           checksum(const char *s);
     void          getCoords(float lat, float lng);
     void          getTime(unsigned long utm);
     int           latDD, latMM, latFF, lngDD, lngMM, lngFF;
