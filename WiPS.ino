@@ -640,7 +640,7 @@ void loop() {
           broadcast(bufServer, lenServer);
         }
         // RMC
-        if (nmeaReport.gga) {
+        if (nmeaReport.rmc) {
           lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
