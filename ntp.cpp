@@ -210,3 +210,43 @@ datetime_t NTP::getDateTime(unsigned long utm) {
   dt.dd = days + 1;
   return dt;
 }
+
+/**
+  Determine the day of the week using the Tomohiko Sakamoto's method
+
+  @param y year  >1752
+  @param m month 1..12
+  @param d day   1..31
+  @return day of the week, 0..6 (Sun..Sat)
+*/
+uint8_t NTP::getDOW(uint16_t year, uint8_t month, uint8_t day) {
+  uint8_t t[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+  year -= month < 3;
+  return (year + year / 4 - year / 100 + year / 400 + t[month - 1] + day) % 7;
+}
+
+/**
+  Check if a specified date observes DST, according to
+  the time changing rules in Europe:
+
+    start: last Sunday in March,   0300 -> 0400
+    end:   last Sunday in October, 0400 -> 0300
+
+  @param year  year  >1752
+  @param month month 1..12
+  @param day   day   1..31
+  @return bool DST yes or no
+*/
+bool NTP::dstCheck(uint16_t year, uint8_t month, uint8_t day, uint8_t hour) {
+  // Get the last Sunday in March
+  uint8_t dayBegin = 31 - getDOW(year, 3, 31);
+  // Get the last Sunday on October
+  uint8_t dayEnd = 31 - getDOW(year, 10, 31);
+  // Compute the day where DST changes, since we are checking only
+  // at 3 and 4'o clock, this is enough
+  return (month > 3   and month < 10) or                      // Summer
+         (month == 3  and day >  dayBegin) or                 // March
+         (month == 3  and day == dayBegin and hour >= 3) or
+         (month == 10 and day <  dayEnd) or                   // October
+         (month == 10 and day == dayEnd and hour < 4);
+}
