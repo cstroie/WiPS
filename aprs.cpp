@@ -59,7 +59,11 @@ void APRS::stop() {
 void APRS::setCallSign(const char *callsign) {
   if (callsign == NULL) {
     // Create an automatic callsign, using the ChipID
+#if defined(ESP8266)
     snprintf_P(aprsCallSign, sizeof(aprsCallSign), PSTR("TK%04X"), ESP.getChipId() & 0xFFFF);
+#else
+    snprintf_P(aprsCallSign, sizeof(aprsCallSign), PSTR("TK%04X"), (uint16_t)(ESP.getEfuseMac() & 0xFFFF));
+#endif
   }
   else {
     // Keep the callsign
@@ -113,7 +117,11 @@ int APRS::doPassCode(char *callsign) {
 void APRS::setObjectName(const char *object) {
   if (object == NULL) {
     // Create an automatic object name, using the ChipID
+#if defined(ESP8266)
     snprintf_P(aprsObjectNm, sizeof(aprsObjectNm), PSTR("WAT%06X"), ESP.getChipId());
+#else
+    snprintf_P(aprsObjectNm, sizeof(aprsObjectNm), PSTR("WAT%06X"), (uint32_t)(ESP.getEfuseMac() & 0xFFFFFF));
+#endif
   }
   else {
     // Keep the object name

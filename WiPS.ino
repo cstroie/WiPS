@@ -31,9 +31,18 @@ bool PROBE = true;
 #include "version.h"
 
 // WiFi
+#if defined(ESP8266)
 #include <ESP8266WiFi.h>
+#else
+#include <WiFi.h>
+#include "BluetoothSerial.h"
+#endif
+// UDP
 #include <WiFiUdp.h>
+// WiFi Manager
+#if defined(ESP8266)
 #include <WiFiManager.h>
+#endif
 
 #ifdef WIFI_SSIDPASS
 static const char wifiSP[] PROGMEM = WIFI_SSIDPASS;
@@ -42,7 +51,11 @@ const char *wifiFS          = WIFI_FS;
 #endif
 
 // OTA
+#if defined(ESP8266)
 #include <ESP8266mDNS.h>
+#else
+#include <ESPmDNS.h>
+#endif
 #include <ArduinoOTA.h>
 int otaProgress = 0;
 int otaPort     = 8266;
@@ -56,6 +69,11 @@ TCPServer nmeaServer(10110);
 WiFiUDP   bcastUDP;
 IPAddress bcastIP(0, 0, 0, 0);
 const int bcastPort = 10110;
+
+#ifndef ESP8266
+// Bluetooth
+BluetoothSerial SerialBT;
+#endif
 
 // Mozilla Location Services
 #include "mls.h"
@@ -81,8 +99,10 @@ struct nmeaReports {
 };
 nmeaReports nmeaReport = {1, 1, 0, 0, 0};
 
+#if defined(ESP8266)
 // Set ADC to Voltage
 ADC_MODE(ADC_VCC);
+#endif
 
 // Timings
 unsigned long geoNextTime = 0;    // Next time to geolocate
@@ -134,9 +154,12 @@ void showWiFi() {
 */
 void setLED(int load) {
   int level = (1 << load) - 1;
+#if defined(ESP8266)
   analogWrite(LED, PWMRANGE - level);
+#endif
 }
 
+#if defined(ESP8266)
 /**
   Try WPS PBC
   TODO
@@ -156,6 +179,7 @@ bool tryWPSPBC() {
   }
   return wpsSuccess;
 }
+#endif
 
 /**
   Try to connect to a HTTPS server
@@ -349,12 +373,14 @@ bool wifiKnownNetworks() {
 #endif
     }
   }
+
   // Clear the scan results
   WiFi.scanDelete();
   // Return the result
   return result;
 }
 
+#if defined(ESP8266)
 /**
   Feedback notification when SoftAP is started
 */
@@ -363,6 +389,7 @@ void wifiCallback(WiFiManager * wifiMgr) {
                   wifiMgr->getConfigPortalSSID().c_str());
   setLED(10);
 }
+#endif
 
 /**
   Try to connect to open wifi networks
@@ -379,7 +406,7 @@ bool wifiOpenNetworks() {
     char ssid[WL_SSID_MAX_LENGTH] = "";
     for (size_t i = 1; i < netCount; i++) {
       // Find the open networks
-      if (WiFi.encryptionType(i) == ENC_TYPE_NONE) {
+      if (WiFi.encryptionType(i) == 7) { // ENC_TYPE_NONE
         // Keep the SSID
         strncpy(ssid, WiFi.SSID(i).c_str(), WL_SSID_MAX_LENGTH);
         Serial.printf_P(PSTR("$PWIFI,OPN,%s\r\n"), ssid);
@@ -409,7 +436,11 @@ bool wifiOpenNetworks() {
 */
 bool wifiConnect(int timeout = 300) {
   // Set the host name
+#if defined(ESP8266)
   WiFi.hostname(NODENAME);
+#else
+  WiFi.setHostname(NODENAME);
+#endif
   // Set the mode
   WiFi.mode(WIFI_STA);
   // Led ON
@@ -432,6 +463,7 @@ bool wifiConnect(int timeout = 300) {
       if (not wifiKnownNetworks()) {
         // Try the open networks
         if (not wifiOpenNetworks()) {
+#if defined(ESP8266)
           // Use the WiFi Manager
           WiFiManager wifiManager;
           wifiManager.setTimeout(timeout);
@@ -439,6 +471,9 @@ bool wifiConnect(int timeout = 300) {
           setLED(10);
           if (not wifiManager.startConfigPortal(NODENAME))
             setLED(2);
+#else
+          setLED(2);
+#endif
         }
       }
     }
@@ -453,7 +488,7 @@ bool wifiConnect(int timeout = 300) {
 /**
   UDP broadcast
 */
-void broadcast(char *buf, size_t len) {
+void broadcast(const uint8_t *buf, size_t len) {
   // Find the broadcast IP
   bcastIP = ~ WiFi.subnetMask() | WiFi.gatewayIP();
   //Serial.printf_P(PSTR("$PBCST,%u,%d.%d.%d.%d\r\n"),
@@ -469,7 +504,11 @@ void broadcast(char *buf, size_t len) {
 */
 void setup() {
   // Init the serial communication
+#if defined(ESP8266)
   Serial.begin(9600, SERIAL_8N1, SERIAL_TX_ONLY);
+#else
+  Serial.begin(9600);
+#endif
   Serial.print("\r\n");
   // Compose the NMEA welcome message
   nmea.getWelcome(NODENAME, VERSION);
@@ -477,6 +516,11 @@ void setup() {
   Serial.print(F("$PGPL3,This program comes with ABSOLUTELY NO WARRANTY.\r\n"));
   Serial.print(F("$PGPL3,This is free software, and you are welcome \r\n"));
   Serial.print(F("$PGPL3,to redistribute it under certain conditions.\r\n"));
+
+#ifndef ESP8266
+  SerialBT.begin(NODENAME);
+#endif
+
 
   // Initialize the LED pin as an output
   pinMode(LED, OUTPUT);
@@ -538,7 +582,11 @@ void setup() {
   Serial.print("\r\n");
 
   // Hardware data
+#if defined(ESP8266)
   int hwVcc  = ESP.getVcc();
+#else
+  int hwVcc  = 0;
+#endif
   Serial.print(F("$PHWMN,VCC,"));
   Serial.print((float)hwVcc / 1000, 3);
   Serial.print("\r\n");
@@ -637,39 +685,73 @@ void loop() {
           lenServer = nmea.getGGA(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, 1, found);
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-          broadcast(bufServer, lenServer);
+          //broadcast(bufServer, lenServer);
+#ifndef ESP8266
+          if (SerialBT.hasClient()) {
+            SerialBT.flush();
+            SerialBT.println(bufServer);
+          }
+#endif
         }
         // RMC
         if (nmeaReport.rmc) {
           lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
           Serial.print(bufServer);
-          if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-          broadcast(bufServer, lenServer);
+          //if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+          //broadcast(bufServer, lenServer);
+#ifndef ESP8266
+          if (SerialBT.hasClient()) {
+            SerialBT.flush();
+            SerialBT.println(bufServer);
+          }
+#endif
         }
         // GLL
         if (nmeaReport.gll) {
           lenServer = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-          broadcast(bufServer, lenServer);
+          //broadcast(bufServer, lenServer);
+#ifndef ESP8266
+          if (SerialBT.hasClient()) {
+            SerialBT.flush();
+            SerialBT.println(bufServer);
+          }
+#endif
         }
         // VTG
         if (nmeaReport.vtg) {
           lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-          broadcast(bufServer, lenServer);
+          //broadcast(bufServer, lenServer);
+#ifndef ESP8266
+          if (SerialBT.hasClient()) {
+            SerialBT.flush();
+            SerialBT.println(bufServer);
+          }
+#endif
         }
         // ZDA
         if (nmeaReport.zda) {
           lenServer = nmea.getZDA(bufServer, 200, utm);
           Serial.print(bufServer);
           if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-          broadcast(bufServer, lenServer);
+          //broadcast(bufServer, lenServer);
+#ifndef ESP8266
+          if (SerialBT.hasClient()) {
+            SerialBT.flush();
+            SerialBT.println(bufServer);
+          }
+#endif
         }
 
         // Read the Vcc (mV)
+#if defined(ESP8266)
         int vcc  = ESP.getVcc();
+#else
+        int vcc  = 0;
+#endif
         // Set the bit 3 to show whether the battery is wrong (3.3V +/- 10%)
         if (vcc < 3000 or vcc > 3600) aprs.aprsTlmBits |= B00001000;
         // Get RSSI

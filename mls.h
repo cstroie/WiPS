@@ -23,9 +23,23 @@
 #define MAXNETS 32
 
 #include "Arduino.h"
+#if defined(ESP8266)
 #include <ESP8266WiFi.h>
+#else
+#include <WiFi.h>
+#endif
 #include <WiFiClientSecure.h>
 #include "config.h"
+
+#ifndef WL_MAC_ADDR_LENGTH
+#define WL_MAC_ADDR_LENGTH 6
+#endif
+#ifndef WL_SSID_MAX_LENGTH
+#define WL_SSID_MAX_LENGTH 32
+#endif
+#ifndef WL_WPA_KEY_MAX_LENGTH
+#define WL_WPA_KEY_MAX_LENGTH 63
+#endif
 
 // Define GeoLocation server
 #define GEO_SERVER    "location.services.mozilla.com"
