@@ -180,11 +180,12 @@ bool wifiCheckHTTP(int timeout = 10000, char* server = "www.google.com", int por
     }
     else
       Serial.printf_P(PSTR("$PHTTP,DIS,%s,%d\r\n"), server, port);
-    // Stop the test
-    testClient.stop();
   }
   else
     Serial.printf_P(PSTR("$PHTTP,ERR,%s,%d\r\n"), server, port);
+  // Stop the test
+  testClient.stop();
+  // Return the result
   return result;
 }
 
@@ -455,7 +456,8 @@ bool wifiConnect(int timeout = 300) {
 */
 void broadcast(char *buf, size_t len) {
   // Find the broadcast IP
-  bcastIP = ~ WiFi.subnetMask() | WiFi.gatewayIP();
+  bcastIP = IPAddress((~ (uint32_t)WiFi.subnetMask()) | ((uint32_t)WiFi.gatewayIP()));
+  
   //Serial.printf_P(PSTR("$PBCST,%u,%d.%d.%d.%d\r\n"),
   //                bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
   // Send the packet

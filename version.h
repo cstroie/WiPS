@@ -25,6 +25,6 @@
 // Device specific constants
 const char NODENAME[] = "WiPS";
 const char nodename[] = "wips";
-const char VERSION[]  = "0.3.11";
+const char VERSION[]  = "0.3.12";
 
 #endif /* VERSION_H */
