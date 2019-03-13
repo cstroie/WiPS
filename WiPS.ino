@@ -162,7 +162,7 @@ bool tryWPSPBC() {
 
   @param timeout connection timeout
 */
-bool wifiCheckHTTP(int timeout = 10000, char* server = "www.google.com", int port = 443) {
+bool wifiCheckHTTP(int timeout = 10000, char* server = HTTP_TEST_SERVER, int port = HTTP_TEST_PORT) {
   bool result = false;
   WiFiClientSecure testClient;
   testClient.setTimeout(timeout);
@@ -233,8 +233,11 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
   // Check the internet connection
   if (WiFi.isConnected()) {
     showWiFi();
-    result = true;
+    result = wifiCheckHTTP();
   }
+  else
+    // Timed out
+    Serial.printf_P(PSTR("$PWIFI,END,%s\r\n"), _ssid);
   return result;
 }
 
@@ -283,12 +286,8 @@ bool wifiKnownNetworks() {
                   (strlen(ssid) == strlen(WiFi.SSID(i).c_str()))) {
                 // Try to connect to wifi
                 if (wifiTryConnect(ssid, pass)) {
-                  // Check the internet connection
-                  if (wifiCheckHTTP()) {
-                    yield();
-                    result = true;
-                    break;
-                  }
+                  result = true;
+                  break;
                 }
               }
               yield();
@@ -327,12 +326,8 @@ bool wifiKnownNetworks() {
             for (size_t i = 1; i < netCount; i++) {
               // Try to connect to wifi
               if (wifiTryConnect(WiFi.SSID(i).c_str(), pass)) {
-                // Check the internet connection
-                if (wifiCheckHTTP()) {
-                  yield();
-                  result = true;
-                  break;
-                }
+                result = true;
+                break;
               }
               yield();
             }
@@ -386,12 +381,8 @@ bool wifiOpenNetworks() {
         Serial.printf_P(PSTR("$PWIFI,OPN,%s\r\n"), ssid);
         // Try to connect to wifi
         if (wifiTryConnect(ssid)) {
-          // Check the internet connection
-          if (wifiCheckHTTP()) {
-            yield();
-            result = true;
-            break;
-          }
+          result = true;
+          break;
         }
       }
       yield();
@@ -413,9 +404,13 @@ bool wifiConnect(int timeout = 300) {
   WiFi.hostname(NODENAME);
   // Set the mode
   WiFi.mode(WIFI_STA);
+  // Do not try to auto-connect on power on
+  WiFi.setAutoConnect(false);
   // Led ON
   setLED(1);
 
+  // Keep the connection result
+  bool result = true;
   // Try to connect to WiFi
 #ifdef WIFI_SSID
   wifiTryConnect(WIFI_SSID, WIFI_PASS);
@@ -438,8 +433,10 @@ bool wifiConnect(int timeout = 300) {
           wifiManager.setTimeout(timeout);
           wifiManager.setAPCallback(wifiCallback);
           setLED(10);
-          if (not wifiManager.startConfigPortal(NODENAME))
+          if (not wifiManager.startConfigPortal(NODENAME)) {
             setLED(2);
+            result = false;
+          }
         }
       }
     }
@@ -448,7 +445,7 @@ bool wifiConnect(int timeout = 300) {
   // Led OFF
   setLED(0);
 
-  return WiFi.status() == WL_CONNECTED;
+  return result;
 }
 
 /**
@@ -457,7 +454,7 @@ bool wifiConnect(int timeout = 300) {
 void broadcast(char *buf, size_t len) {
   // Find the broadcast IP
   bcastIP = IPAddress((~ (uint32_t)WiFi.subnetMask()) | ((uint32_t)WiFi.gatewayIP()));
-  
+
   //Serial.printf_P(PSTR("$PBCST,%u,%d.%d.%d.%d\r\n"),
   //                bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
   // Send the packet
@@ -495,23 +492,23 @@ void setup() {
 #endif
 
   ArduinoOTA.onStart([]() {
-    Serial.print(F("$POTA,START\r\n"));
+    Serial.print(F("$POTA,STA\r\n"));
   });
 
   ArduinoOTA.onEnd([]() {
-    Serial.print(F("\r\n$POTA,FINISHED\r\n"));
+    Serial.print(F("\r\n$POTA,FIN\r\n"));
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     int otaPrg = progress / (total / 100);
     if (otaProgress != otaPrg) {
       otaProgress = otaPrg;
-      Serial.printf_P(PSTR("$POTA,PROGRESS,%u%%\r\n"), otaProgress * 100);
+      Serial.printf_P(PSTR("$POTA,PRG,%u%%\r\n"), otaProgress * 100);
     }
   });
 
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf_P(PSTR("$POTA,ERROR,%u,"), error);
+    Serial.printf_P(PSTR("$POTA,ERR,%u,"), error);
     if (error == OTA_AUTH_ERROR)
       Serial.print(F("Auth Failed\r\n"));
     else if (error == OTA_BEGIN_ERROR)
@@ -525,7 +522,7 @@ void setup() {
   });
 
   ArduinoOTA.begin();
-  Serial.print(F("$POTA,READY\r\n"));
+  Serial.print(F("$POTA,RDY\r\n"));
 
   // Configure NTP
   ntp.init(NTP_SERVER);
