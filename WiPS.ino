@@ -44,7 +44,6 @@ const char *wifiFS          = WIFI_FS;
 // OTA
 #include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
-int otaProgress = 0;
 int otaPort     = 8266;
 
 // TCP server
@@ -119,6 +118,7 @@ void showWiFi() {
     charIP(WiFi.localIP(),   ipbuf, sizeof(ipbuf), false);
     charIP(WiFi.gatewayIP(), gwbuf, sizeof(gwbuf), false);
     charIP(WiFi.dnsIP(),     nsbuf, sizeof(nsbuf), false);
+    yield();
 
     // Print
     Serial.printf_P(PSTR("$PWIFI,CON,%s,%d,%ddBm,%s,%s,%s\r\n"),
@@ -127,6 +127,7 @@ void showWiFi() {
   }
   else
     Serial.print(F("$PWIFI,ERR\r\n"));
+  yield();
 }
 
 /**
@@ -162,7 +163,7 @@ bool tryWPSPBC() {
 
   @param timeout connection timeout
 */
-bool wifiCheckHTTP(int timeout = 10000, char* server = HTTP_TEST_SERVER, int port = HTTP_TEST_PORT) {
+bool wifiCheckHTTP(char* server, int port, int timeout = 10000) {
   bool result = false;
   WiFiClientSecure testClient;
   testClient.setTimeout(timeout);
@@ -170,7 +171,9 @@ bool wifiCheckHTTP(int timeout = 10000, char* server = HTTP_TEST_SERVER, int por
   if (testClient.connect(server, port)) {
     Serial.printf_P(PSTR("$PHTTP,CON,%s,%d\r\n"), server, port);
     // Send a request
-    testClient.print("HEAD / HTTP/1.0\r\n\r\n");
+    testClient.print("HEAD / HTTP/1.1\r\n");
+    testClient.print("Host: "); testClient.print(server); testClient.print("\r\n");
+    testClient.print("Connection: close\r\n\r\n");
     // Check the response
     int rlen = testClient.readBytesUntil('\r', buf, 64);
     if (rlen > 0) {
@@ -233,7 +236,10 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
   // Check the internet connection
   if (WiFi.isConnected()) {
     showWiFi();
-    result = wifiCheckHTTP();
+    //result = wifiCheckHTTP(GEO_SERVER, GEO_PORT);
+    result = (mls.geoLocation() >= 0);
+    if (!result)
+      Serial.printf_P(PSTR("$PWIFI,ERR,%s\r\n"), _ssid);
   }
   else
     // Timed out
@@ -246,7 +252,7 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
 
   @result connection result to a known WiFi
 */
-bool wifiKnownNetworks() {
+bool wifiTryKnownNetworks() {
   bool result = false;
   if (strlen_P(wifiSP) > 0) {
     // Scan the networks
@@ -352,23 +358,12 @@ bool wifiKnownNetworks() {
 }
 
 /**
-  Feedback notification when SoftAP is started
-*/
-void wifiCallback(WiFiManager * wifiMgr) {
-  Serial.printf_P(PSTR("$PWIFI,SRV,%s\r\n"),
-                  wifiMgr->getConfigPortalSSID().c_str());
-  setLED(10);
-}
-
-/**
   Try to connect to open wifi networks
 
   @result connection result to an open WiFi
 */
-bool wifiOpenNetworks() {
+bool wifiTryOpenNetworks() {
   bool result = false;
-  // Disable credetials storing
-  WiFi.persistent(false);
   // Scan
   int netCount = WiFi.scanNetworks();
   if (netCount > 0) {
@@ -390,10 +385,17 @@ bool wifiOpenNetworks() {
   }
   // Clear the scan results
   WiFi.scanDelete();
-  // Re-enable credetials storing
-  WiFi.persistent(true);
   // Return the result
   return result;
+}
+
+/**
+  Feedback notification when SoftAP is started
+*/
+void wifiCallback(WiFiManager * wifiMgr) {
+  Serial.printf_P(PSTR("$PWIFI,SRV,%s\r\n"),
+                  wifiMgr->getConfigPortalSSID().c_str());
+  setLED(10);
 }
 
 /**
@@ -405,7 +407,7 @@ bool wifiConnect(int timeout = 300) {
   // Set the mode
   WiFi.mode(WIFI_STA);
   // Do not try to auto-connect on power on
-  WiFi.setAutoConnect(false);
+  //WiFi.setAutoConnect(false);
   // Led ON
   setLED(1);
 
@@ -415,8 +417,8 @@ bool wifiConnect(int timeout = 300) {
 #ifdef WIFI_SSID
   wifiTryConnect(WIFI_SSID, WIFI_PASS);
 #else
-  // Try to connect to the last known AP
-  if (WiFi.status() != WL_CONNECTED) {
+  // Check if already connected, then try to connect to the last known AP
+  if (!WiFi.isConnected()) {
     // Keep the saved credentials
     char savedSSID[WL_SSID_MAX_LENGTH];
     char savedPSK[WL_WPA_KEY_MAX_LENGTH];
@@ -425,9 +427,9 @@ bool wifiConnect(int timeout = 300) {
     // Try to connect with saved credentials
     if (not wifiTryConnect()) {
       // Try the known networks
-      if (not wifiKnownNetworks()) {
+      if (not wifiTryKnownNetworks()) {
         // Try the open networks
-        if (not wifiOpenNetworks()) {
+        if (not wifiTryOpenNetworks()) {
           // Use the WiFi Manager
           WiFiManager wifiManager;
           wifiManager.setTimeout(timeout);
@@ -467,6 +469,8 @@ void broadcast(char *buf, size_t len) {
   Main Arduino setup function
 */
 void setup() {
+  // Do not save the last WiFi settings
+  WiFi.persistent(false);
   // Init the serial communication
   Serial.begin(9600, SERIAL_8N1, SERIAL_TX_ONLY);
   Serial.print("\r\n");
@@ -500,6 +504,7 @@ void setup() {
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    static int otaProgress = 0;
     int otaPrg = progress / (total / 100);
     if (otaProgress != otaPrg) {
       otaProgress = otaPrg;
@@ -509,16 +514,11 @@ void setup() {
 
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf_P(PSTR("$POTA,ERR,%u,"), error);
-    if (error == OTA_AUTH_ERROR)
-      Serial.print(F("Auth Failed\r\n"));
-    else if (error == OTA_BEGIN_ERROR)
-      Serial.print(F("Begin Failed\r\n"));
-    else if (error == OTA_CONNECT_ERROR)
-      Serial.print(F("Connect Failed\r\n"));
-    else if (error == OTA_RECEIVE_ERROR)
-      Serial.print(F("Receive Failed\r\n"));
-    else if (error == OTA_END_ERROR)
-      Serial.print(F("End Failed\r\n"));
+    if      (error == OTA_AUTH_ERROR)     Serial.print(F("Auth Failed\r\n"));
+    else if (error == OTA_BEGIN_ERROR)    Serial.print(F("Begin Failed\r\n"));
+    else if (error == OTA_CONNECT_ERROR)  Serial.print(F("Connect Failed\r\n"));
+    else if (error == OTA_RECEIVE_ERROR)  Serial.print(F("Receive Failed\r\n"));
+    else if (error == OTA_END_ERROR)      Serial.print(F("End Failed\r\n"));
   });
 
   ArduinoOTA.begin();
