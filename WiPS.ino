@@ -80,6 +80,10 @@ struct nmeaReports {
 };
 nmeaReports nmeaReport = {1, 1, 0, 0, 0};
 
+// OLED
+#include <U8x8lib.h>
+U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(16);
+
 // Set ADC to Voltage
 ADC_MODE(ADC_VCC);
 
@@ -124,6 +128,13 @@ void showWiFi() {
     Serial.printf_P(PSTR("$PWIFI,CON,%s,%d,%ddBm,%s,%s,%s\r\n"),
                     WiFi.SSID().c_str(), WiFi.channel(), WiFi.RSSI(),
                     ipbuf, gwbuf, nsbuf);
+    // Display
+    u8x8.clear();
+    u8x8.draw1x2String(0, 0, WiFi.SSID().c_str());
+    u8x8.setCursor(0, 2); u8x8.print("IP "); u8x8.print(ipbuf);
+    u8x8.setCursor(0, 3); u8x8.print("GW "); u8x8.print(gwbuf);
+    u8x8.setCursor(0, 4); u8x8.print("NS "); u8x8.print(nsbuf);
+    delay(1000);
   }
   else
     Serial.print(F("$PWIFI,ERR\r\n"));
@@ -224,14 +235,21 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
 
   // Try to connect
   Serial.printf_P(PSTR("$PWIFI,BGN,%s\r\n"), _ssid);
+  u8x8.clear();
+  u8x8.draw2x2String(0, 0, "WiFi");
   // Different calls for different configurations
   if (ssid == NULL) WiFi.begin();
   else              WiFi.begin(_ssid, pass);
+  // Display
+  u8x8.setCursor(0, 3);
+  u8x8.print(_ssid);
+  u8x8.setCursor(0, 4);
   // Check the status
   int tries = 0;
   while (!WiFi.isConnected() and tries < timeout) {
     tries++;
     Serial.printf_P(PSTR("$PWIFI,TRY,%d/%d,%s\r\n"), tries, timeout, _ssid);
+    u8x8.print("*");
     delay(1000);
   };
   // Check the internet connection
@@ -475,12 +493,20 @@ void setup() {
   // Init the serial communication
   Serial.begin(9600, SERIAL_8N1, SERIAL_TX_ONLY);
   Serial.print("\r\n");
+  // Init the display
+  u8x8.begin();
+  u8x8.setFont(u8x8_font_chroma48medium8_r);
+  u8x8.setContrast(2);
   // Compose the NMEA welcome message
   nmea.getWelcome(NODENAME, VERSION);
   Serial.print(nmea.welcome);
   Serial.print(F("$PGPL3,This program comes with ABSOLUTELY NO WARRANTY.\r\n"));
   Serial.print(F("$PGPL3,This is free software, and you are welcome \r\n"));
   Serial.print(F("$PGPL3,to redistribute it under certain conditions.\r\n"));
+  // Display
+  u8x8.draw2x2String(4, 0, NODENAME);
+  u8x8.drawString(5, 3, VERSION);
+  delay(1000);
 
   // Initialize the LED pin as an output
   pinMode(LED, OUTPUT);
@@ -607,6 +633,12 @@ void loop() {
       if (sAcc < 0) sAcc = acc;
       else          sAcc = (((sAcc << 2) - sAcc + acc) + 2) >> 2;
 
+      // Display
+      u8x8.clear();
+      char bufClock[20];
+      ntp.getClock(bufClock, 20, utm);
+      u8x8.setCursor(4, 3); u8x8.print(bufClock);
+
       if (mls.current.valid) {
         // Report
         Serial.print(F("$PSCAN,FIX,"));
@@ -614,6 +646,9 @@ void loop() {
         Serial.print(mls.current.longitude, 6); Serial.print(",");
         Serial.print(acc);                      Serial.print("m,");
         Serial.print(ntp.getSeconds() - utm);   Serial.print("s");
+        // Display
+        u8x8.setCursor(0, 0); u8x8.print("Lat "); u8x8.print(mls.current.latitude,  6);
+        u8x8.setCursor(0, 1); u8x8.print("Lng "); u8x8.print(mls.current.longitude, 6);
 
         // Check if moving
         bool moving = mls.getMovement() >= (sAcc >> 2);
@@ -626,6 +661,10 @@ void loop() {
           Serial.print(mls.distance, 2);  Serial.print("m,");
           Serial.print(mls.speed, 2);     Serial.print("m/s,");
           Serial.print(mls.bearing);      Serial.print("'");
+          // Display
+          u8x8.setCursor(0, 2); u8x8.print("Spd "); u8x8.print(mls.speed, 2);
+          u8x8.setCursor(8, 2); u8x8.print("Crs "); u8x8.print(sCrs);
+
         }
         Serial.print("\r\n");
 

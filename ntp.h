@@ -42,6 +42,7 @@ class NTP {
     unsigned long getSeconds(bool sync = true);
     unsigned long getUptime(char *buf, size_t len);
     datetime_t    getDateTime(unsigned long utm);
+    uint8_t       getClock(char *buf, size_t len, unsigned long utm);
     uint8_t       getDOW(uint16_t year, uint8_t month, uint8_t day);
     bool          dstCheck(uint16_t year, uint8_t month, uint8_t day, uint8_t hour);
     bool          valid       = false;               // Flag to know the time is accurate

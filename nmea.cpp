@@ -174,7 +174,7 @@ int NMEA::getGLL(char *buf, size_t len, unsigned long utm, float lat, float lng)
 }
 
 /*
-  Compose the RMC sentence
+  Compose the VTG sentence
   $GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A
 */
 int NMEA::getVTG(char *buf, size_t len, int crs, int knots, int kmh) {
@@ -216,4 +216,3 @@ int NMEA::checksum(const char *s) {
     c ^= *s++;
   return c;
 }
-

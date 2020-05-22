@@ -66,6 +66,15 @@ void NTP::report(unsigned long utm) {
 }
 
 /**
+  Get the clock
+*/
+uint8_t NTP::getClock(char *buf, size_t len, unsigned long utm) {
+  datetime_t dt = getDateTime(utm);
+  snprintf_P(buf, len, PSTR("%02d:%02d:%02d"), dt.hh, dt.mm, dt.ss);
+  return strlen(buf);
+}
+
+/**
   Get current time as UNIX time (1970 epoch)
 
   @param sync flag to show whether network sync is to be performed
