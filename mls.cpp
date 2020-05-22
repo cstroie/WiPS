@@ -88,6 +88,7 @@ int MLS::geoLocation() {
   // Create the secure WiFi
   WiFiClientSecure geoClient;
   geoClient.setTimeout(5000);
+  geoClient.setInsecure();
 
   // Try to connect
   if (geoClient.connect(geoServer, geoPort)) {

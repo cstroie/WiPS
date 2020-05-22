@@ -166,6 +166,7 @@ bool wifiCheckHTTP(int timeout = 10000, char* server = HTTP_TEST_SERVER, int por
   bool result = false;
   WiFiClientSecure testClient;
   testClient.setTimeout(timeout);
+  testClient.setInsecure();
   char buf[64] = "";
   if (testClient.connect(server, port)) {
     Serial.printf_P(PSTR("$PHTTP,CON,%s,%d\r\n"), server, port);
