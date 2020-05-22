@@ -237,8 +237,8 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
   // Check the internet connection
   if (WiFi.isConnected()) {
     showWiFi();
-    //result = wifiCheckHTTP(GEO_SERVER, GEO_PORT);
-    result = (mls.geoLocation() >= 0);
+    result = wifiCheckHTTP(GEO_SERVER, GEO_PORT);
+    //result = (mls.geoLocation() >= 0);
     if (!result)
       Serial.printf_P(PSTR("$PWIFI,ERR,%s\r\n"), _ssid);
   }
