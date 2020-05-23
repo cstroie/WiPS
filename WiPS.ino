@@ -244,6 +244,8 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
   u8x8.setCursor(0, 2);
   u8x8.print(_ssid);
   u8x8.setCursor(0, 3);
+  u8x8.print("---------------");
+  u8x8.setCursor(0, 3);
   // Check the status
   int tries = 0;
   while (!WiFi.isConnected() and tries < timeout) {
