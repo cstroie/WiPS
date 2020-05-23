@@ -132,8 +132,8 @@ void showWiFi() {
     u8x8.clear();
     u8x8.draw1x2String(0, 0, WiFi.SSID().c_str());
     u8x8.setCursor(0, 2); u8x8.print("IP "); u8x8.print(ipbuf);
-    u8x8.setCursor(0, 3); u8x8.print("GW "); u8x8.print(gwbuf);
-    u8x8.setCursor(0, 4); u8x8.print("NS "); u8x8.print(nsbuf);
+    //u8x8.setCursor(0, 3); u8x8.print("GW "); u8x8.print(gwbuf);
+    //u8x8.setCursor(0, 4); u8x8.print("NS "); u8x8.print(nsbuf);
     delay(1000);
   }
   else
@@ -236,20 +236,20 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
   // Try to connect
   Serial.printf_P(PSTR("$PWIFI,BGN,%s\r\n"), _ssid);
   u8x8.clear();
-  u8x8.draw2x2String(0, 0, "WiFi");
+  u8x8.draw1x2String(0, 0, "WiFi");
   // Different calls for different configurations
   if (ssid == NULL) WiFi.begin();
   else              WiFi.begin(_ssid, pass);
   // Display
-  u8x8.setCursor(0, 3);
+  u8x8.setCursor(0, 2);
   u8x8.print(_ssid);
-  u8x8.setCursor(0, 4);
+  u8x8.setCursor(0, 3);
   // Check the status
   int tries = 0;
   while (!WiFi.isConnected() and tries < timeout) {
     tries++;
     Serial.printf_P(PSTR("$PWIFI,TRY,%d/%d,%s\r\n"), tries, timeout, _ssid);
-    u8x8.print("*");
+    u8x8.print("|");
     delay(1000);
   };
   // Check the internet connection
@@ -277,6 +277,14 @@ bool wifiTryKnownNetworks() {
     // Scan the networks
     int netCount = WiFi.scanNetworks();
     if (netCount > 0) {
+      Serial.printf_P(PSTR("$SWIFI,CNT,%d\r\n"), netCount);
+      for (size_t i = 0; i < netCount; i++)
+        Serial.printf_P(PSTR("$SWIFI,%d,%d,%d,%s,%s\r\n"),
+                        i + 1,
+                        WiFi.channel(i),
+                        WiFi.RSSI(i),
+                        WiFi.encryptionType(i) == ENC_TYPE_NONE ? "open" : "",
+                        WiFi.SSID(i).c_str());
       // Temporary buffers for SSID, password and credentials list
       char ssid[WL_SSID_MAX_LENGTH]    = "";
       char pass[WL_WPA_KEY_MAX_LENGTH] = "";
@@ -305,7 +313,7 @@ bool wifiTryKnownNetworks() {
             strncpy(ssid, f1, fs - f1); ssid[fs - f1] = 0;
             strncpy(pass, f2, rs - f2); pass[rs - f2] = 0;
             // Check if we know any network
-            for (size_t i = 1; i < netCount; i++) {
+            for (size_t i = 0; i < netCount; i++) {
               // Check if we the SSID match
               if ((strncmp(ssid, WiFi.SSID(i).c_str(), WL_SSID_MAX_LENGTH) == 0) and
                   (strlen(ssid) == strlen(WiFi.SSID(i).c_str()))) {
@@ -328,6 +336,8 @@ bool wifiTryKnownNetworks() {
           rs = sspa + strlen(sspa);
         yield();
       }
+      // Return if we have a connection
+      if (result) return result;
 
 #ifdef WIFI_GREYHAT
       // Start again, this time trying all
@@ -348,7 +358,7 @@ bool wifiTryKnownNetworks() {
             strncpy(ssid, f1, fs - f1); ssid[fs - f1] = 0;
             strncpy(pass, f2, rs - f2); pass[rs - f2] = 0;
             // Try all the networks
-            for (size_t i = 1; i < netCount; i++) {
+            for (size_t i = 0; i < netCount; i++) {
               // Try to connect to wifi
               if (wifiTryConnect(WiFi.SSID(i).c_str(), pass)) {
                 result = true;
@@ -414,6 +424,8 @@ bool wifiTryOpenNetworks() {
 void wifiCallback(WiFiManager * wifiMgr) {
   Serial.printf_P(PSTR("$PWIFI,SRV,%s\r\n"),
                   wifiMgr->getConfigPortalSSID().c_str());
+  u8x8.clear();
+  u8x8.draw1x2String(0, 0, wifiMgr->getConfigPortalSSID().c_str());
   setLED(10);
 }
 
@@ -524,10 +536,14 @@ void setup() {
 
   ArduinoOTA.onStart([]() {
     Serial.print(F("$POTA,STA\r\n"));
+    u8x8.clear();
+    u8x8.draw1x2String(3, 0, "OTA Update");
+    u8x8.drawString(2, 3, "[----------]");
   });
 
   ArduinoOTA.onEnd([]() {
     Serial.print(F("\r\n$POTA,FIN\r\n"));
+    u8x8.clear();
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -535,7 +551,9 @@ void setup() {
     int otaPrg = progress / (total / 100);
     if (otaProgress != otaPrg) {
       otaProgress = otaPrg;
-      Serial.printf_P(PSTR("$POTA,PRG,%u%%\r\n"), otaProgress * 100);
+      Serial.printf_P(PSTR("$POTA,PRG,%u%%\r\n"), otaProgress);
+      if (otaProgress < 100)
+        u8x8.drawString(3 + otaProgress / 10, 3, "|");
     }
   });
 
@@ -637,7 +655,7 @@ void loop() {
       u8x8.clear();
       char bufClock[20];
       ntp.getClock(bufClock, 20, utm);
-      u8x8.setCursor(4, 3); u8x8.print(bufClock);
+      u8x8.setCursor(0, 3); u8x8.print("UTC "); u8x8.print(bufClock);
 
       if (mls.current.valid) {
         // Report
@@ -647,8 +665,16 @@ void loop() {
         Serial.print(acc);                      Serial.print("m,");
         Serial.print(ntp.getSeconds() - utm);   Serial.print("s");
         // Display
-        u8x8.setCursor(0, 0); u8x8.print("Lat "); u8x8.print(mls.current.latitude,  6);
-        u8x8.setCursor(0, 1); u8x8.print("Lng "); u8x8.print(mls.current.longitude, 6);
+        u8x8.print(" FIX");
+        u8x8.setCursor(0, 0);
+        u8x8.print("Lat ");
+        u8x8.print(mls.current.latitude  >= 0 ? "N " : "S ");
+        u8x8.print(fabs(mls.current.latitude),  6);
+        u8x8.setCursor(0, 1);
+        u8x8.print("Lng ");
+        u8x8.print(mls.current.longitude >= 0 ? "E" : "W");
+        if (abs(mls.current.longitude) < 100) u8x8.print(" ");
+        u8x8.print(fabs(mls.current.longitude), 6);
 
         // Check if moving
         bool moving = mls.getMovement() >= (sAcc >> 2);
@@ -663,7 +689,7 @@ void loop() {
           Serial.print(mls.bearing);      Serial.print("'");
           // Display
           u8x8.setCursor(0, 2); u8x8.print("Spd "); u8x8.print(mls.speed, 2);
-          u8x8.setCursor(8, 2); u8x8.print("Crs "); u8x8.print(sCrs);
+          u8x8.setCursor(9, 2); u8x8.print("Crs "); u8x8.print(sCrs);
 
         }
         Serial.print("\r\n");
@@ -771,8 +797,10 @@ void loop() {
           setLED(0);
         }
       }
-      else
+      else {
         Serial.printf_P(PSTR("$PSCAN,NOFIX,%dm,%ds\r\n"), acc, ntp.getSeconds() - utm);
+        u8x8.print(" NFX");
+      }
       // Repeat the geolocation after a delay
       geoNextTime = now + geoDelay;
     }
