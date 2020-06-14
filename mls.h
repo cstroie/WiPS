@@ -54,12 +54,14 @@ class MLS {
     float getDistance(float lat1, float long1, float lat2, float long2);
     int   getBearing(float lat1, float long1, float lat2, float long2);
     const char* getCardinal(int course);
+    void  getLocator(float lat, float lng);
     geo_t current;
     geo_t previous;
     float distance;
     float speed;
     int   knots;
     int   bearing;
+    char  locator[7];
   private:
     struct  BSSID_RSSI {
       uint8_t bssid[WL_MAC_ADDR_LENGTH];

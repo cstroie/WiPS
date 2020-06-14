@@ -216,6 +216,8 @@ int MLS::geoLocation() {
       current.latitude  = lat;
       current.longitude = lng;
       current.uptm      = now;
+      // Get the locator
+      getLocator(current.latitude, current.longitude);
     }
     else {
       // No current valid coordinates
@@ -306,4 +308,37 @@ const char* MLS::getCardinal(int course) {
                                     };
   int direction = (int)(((float)course + 11.25f) / 22.5f);
   return directions[direction % 16];
+}
+
+/**
+  Get the maidenhead locator
+*/
+void MLS::getLocator(float lat, float lng) {
+  int o1, o2, o3;
+  int a1, a2, a3;
+  float rem;
+
+  // Longitude
+  rem = lng + 180.0;
+  o1 = (int)(rem / 20.0);
+  rem = rem - (float)o1 * 20.0;
+  o2 = (int)(rem / 2.0);
+  rem = rem - 2.0 * (float)o2;
+  o3 = (int)(12.0 * rem);
+
+  // Latitude
+  rem = lat + 90.0;
+  a1 = (int)(rem / 10.0);
+  rem = rem - (float)a1 * 10.0;
+  a2 = (int)(rem);
+  rem = rem - (float)a2;
+  a3 = (int)(24.0 * rem);
+
+  locator[0] = (char)o1 + 'A';
+  locator[1] = (char)a1 + 'A';
+  locator[2] = (char)o2 + '0';
+  locator[3] = (char)a2 + '0';
+  locator[4] = (char)o3 + 'a';
+  locator[5] = (char)a3 + 'a';
+  locator[6] = (char)0;
 }

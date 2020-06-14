@@ -664,6 +664,7 @@ void loop() {
         Serial.print(F("$PSCAN,FIX,"));
         Serial.print(mls.current.latitude, 6);  Serial.print(",");
         Serial.print(mls.current.longitude, 6); Serial.print(",");
+        Serial.print(mls.locator);              Serial.print(",");
         Serial.print(acc);                      Serial.print("m,");
         Serial.print(ntp.getSeconds() - utm);   Serial.print("s");
         // Display
@@ -692,7 +693,10 @@ void loop() {
           // Display
           u8x8.setCursor(0, 2); u8x8.print("Spd "); u8x8.print(mls.speed, 2);
           u8x8.setCursor(9, 2); u8x8.print("Crs "); u8x8.print(sCrs);
-
+        }
+        else {
+          // Display the locator
+          u8x8.setCursor(0, 2); u8x8.print("Loc "); u8x8.print(mls.locator);
         }
         Serial.print("\r\n");
 
