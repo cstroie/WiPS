@@ -1,7 +1,7 @@
 /**
   nmea.cpp - Simple GPS data export in NMEA format
 
-  Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by

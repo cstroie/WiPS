@@ -2,7 +2,7 @@
   WiPS - Wireless Positioning System and Automated Position Reporting System
          based on Wifi geolocation, using Mozilla Location Services.
 
-  Copyright (c) 2017-2018 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -80,9 +80,11 @@ struct nmeaReports {
 };
 nmeaReports nmeaReport = {1, 1, 0, 0, 0};
 
+#ifdef HAVE_OLED
 // OLED
 #include <U8x8lib.h>
 U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(16);
+#endif
 
 // Set ADC to Voltage
 ADC_MODE(ADC_VCC);
@@ -128,6 +130,8 @@ void showWiFi() {
     Serial.printf_P(PSTR("$PWIFI,CON,%s,%d,%ddBm,%s,%s,%s\r\n"),
                     WiFi.SSID().c_str(), WiFi.channel(), WiFi.RSSI(),
                     ipbuf, gwbuf, nsbuf);
+
+#ifdef HAVE_OLED
     // Display
     u8x8.clear();
     u8x8.draw1x2String(0, 0, WiFi.SSID().c_str());
@@ -135,6 +139,7 @@ void showWiFi() {
     //u8x8.setCursor(0, 3); u8x8.print("GW "); u8x8.print(gwbuf);
     //u8x8.setCursor(0, 4); u8x8.print("NS "); u8x8.print(nsbuf);
     delay(1000);
+#endif
   }
   else
     Serial.print(F("$PWIFI,ERR\r\n"));
@@ -235,23 +240,29 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
 
   // Try to connect
   Serial.printf_P(PSTR("$PWIFI,BGN,%s\r\n"), _ssid);
+#ifdef HAVE_OLED
   u8x8.clear();
   u8x8.draw1x2String(0, 0, "WiFi");
+#endif
   // Different calls for different configurations
   if (ssid == NULL) WiFi.begin();
   else              WiFi.begin(_ssid, pass);
+#ifdef HAVE_OLED
   // Display
   u8x8.setCursor(0, 2);
   u8x8.print(_ssid);
   u8x8.setCursor(0, 3);
   u8x8.print("---------------");
   u8x8.setCursor(0, 3);
+#endif
   // Check the status
   int tries = 0;
   while (!WiFi.isConnected() and tries < timeout) {
     tries++;
     Serial.printf_P(PSTR("$PWIFI,TRY,%d/%d,%s\r\n"), tries, timeout, _ssid);
+#ifdef HAVE_OLED
     u8x8.print("|");
+#endif
     delay(1000);
   };
   // Check the internet connection
@@ -426,8 +437,10 @@ bool wifiTryOpenNetworks() {
 void wifiCallback(WiFiManager * wifiMgr) {
   Serial.printf_P(PSTR("$PWIFI,SRV,%s\r\n"),
                   wifiMgr->getConfigPortalSSID().c_str());
+#ifdef HAVE_OLED
   u8x8.clear();
   u8x8.draw1x2String(0, 0, wifiMgr->getConfigPortalSSID().c_str());
+#endif
   setLED(10);
 }
 
@@ -507,19 +520,23 @@ void setup() {
   // Init the serial communication
   Serial.begin(9600, SERIAL_8N1, SERIAL_TX_ONLY);
   Serial.print("\r\n");
+#ifdef HAVE_OLED
   // Init the display
   u8x8.begin();
   u8x8.setFont(u8x8_font_chroma48medium8_r);
   u8x8.setContrast(2);
+#endif
   // Compose the NMEA welcome message
   nmea.getWelcome(NODENAME, VERSION);
   Serial.print(nmea.welcome);
   Serial.print(F("$PGPL3,This program comes with ABSOLUTELY NO WARRANTY.\r\n"));
   Serial.print(F("$PGPL3,This is free software, and you are welcome \r\n"));
   Serial.print(F("$PGPL3,to redistribute it under certain conditions.\r\n"));
+#ifdef HAVE_OLED
   // Display
   u8x8.draw2x2String(4, 0, NODENAME);
   u8x8.drawString(5, 3, VERSION);
+#endif
   delay(1000);
 
   // Initialize the LED pin as an output
@@ -538,14 +555,18 @@ void setup() {
 
   ArduinoOTA.onStart([]() {
     Serial.print(F("$POTA,STA\r\n"));
+#ifdef HAVE_OLED
     u8x8.clear();
     u8x8.draw1x2String(3, 0, "OTA Update");
     u8x8.drawString(2, 3, "[----------]");
+#endif
   });
 
   ArduinoOTA.onEnd([]() {
     Serial.print(F("\r\n$POTA,FIN\r\n"));
+#ifdef HAVE_OLED
     u8x8.clear();
+#endif
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -554,8 +575,10 @@ void setup() {
     if (otaProgress != otaPrg) {
       otaProgress = otaPrg;
       Serial.printf_P(PSTR("$POTA,PRG,%u%%\r\n"), otaProgress);
+#ifdef HAVE_OLED
       if (otaProgress < 100)
         u8x8.drawString(3 + otaProgress / 10, 3, "|");
+#endif
     }
   });
 
@@ -653,11 +676,13 @@ void loop() {
       if (sAcc < 0) sAcc = acc;
       else          sAcc = (((sAcc << 2) - sAcc + acc) + 2) >> 2;
 
+#ifdef HAVE_OLED
       // Display
       u8x8.clear();
       char bufClock[20];
       ntp.getClock(bufClock, 20, utm);
       u8x8.setCursor(0, 3); u8x8.print("UTC "); u8x8.print(bufClock);
+#endif
 
       if (mls.current.valid) {
         // Report
@@ -667,6 +692,7 @@ void loop() {
         Serial.print(mls.locator);              Serial.print(",");
         Serial.print(acc);                      Serial.print("m,");
         Serial.print(ntp.getSeconds() - utm);   Serial.print("s");
+#ifdef HAVE_OLED
         // Display
         u8x8.print(" FIX");
         u8x8.setCursor(0, 0);
@@ -678,6 +704,7 @@ void loop() {
         u8x8.print(mls.current.longitude >= 0 ? "E" : "W");
         if (abs(mls.current.longitude) < 100) u8x8.print(" ");
         u8x8.print(fabs(mls.current.longitude), 6);
+#endif
 
         // Check if moving
         bool moving = mls.getMovement() >= (sAcc >> 2);
@@ -690,14 +717,18 @@ void loop() {
           Serial.print(mls.distance, 2);  Serial.print("m,");
           Serial.print(mls.speed, 2);     Serial.print("m/s,");
           Serial.print(mls.bearing);      Serial.print("'");
+#ifdef HAVE_OLED
           // Display
           u8x8.setCursor(0, 2); u8x8.print("Spd "); u8x8.print(mls.speed, 2);
           u8x8.setCursor(9, 2); u8x8.print("Crs "); u8x8.print(sCrs);
+#endif
         }
+#ifdef HAVE_OLED
         else {
           // Display the locator
           u8x8.setCursor(0, 2); u8x8.print("Loc "); u8x8.print(mls.locator);
         }
+#endif
         Serial.print("\r\n");
 
         // Compose and send the NMEA sentences
@@ -805,7 +836,9 @@ void loop() {
       }
       else {
         Serial.printf_P(PSTR("$PSCAN,NOFIX,%dm,%ds\r\n"), acc, ntp.getSeconds() - utm);
+#ifdef HAVE_OLED
         u8x8.print(" NFX");
+#endif
       }
       // Repeat the geolocation after a delay
       geoNextTime = now + geoDelay;
