@@ -535,7 +535,11 @@ void setup() {
 #ifdef HAVE_OLED
   // Display
   u8x8.draw2x2String(4, 0, NODENAME);
-  u8x8.drawString(5, 3, VERSION);
+#ifdef CALLSIGN
+  u8x8.drawString((16 - strlen(CALLSIGN)) / 2, 3, CALLSIGN);
+#else
+  u8x8.drawString((16 - strlen(VERSION)) / 2, 3, VERSION);
+#endif
 #endif
   delay(1000);
 
