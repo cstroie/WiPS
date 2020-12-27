@@ -57,14 +57,12 @@ void APRS::stop() {
   Set the APRS callsign and compute the passcode
 */
 void APRS::setCallSign(const char *callsign) {
-  if (callsign == NULL) {
+  if (callsign == NULL and callsign[0] != '\0')
     // Create an automatic callsign, using the ChipID
     snprintf_P(aprsCallSign, sizeof(aprsCallSign), PSTR("TK%04X"), ESP.getChipId() & 0xFFFF);
-  }
-  else {
+  else
     // Keep the callsign
     strncpy(aprsCallSign, (char*)callsign, sizeof(aprsCallSign));
-  }
   // Compute the passcode
   snprintf_P(aprsPassCode, sizeof(aprsPassCode), PSTR("%3d"), doPassCode((char*)aprsCallSign));
 }

@@ -93,9 +93,9 @@ ADC_MODE(ADC_VCC);
 unsigned long geoNextTime = 0;    // Next time to geolocate
 unsigned long geoDelay    = 20;   // Delay between geolocating
 unsigned long rpNextTime  = 0;    // Next time to report
-unsigned long rpDelay     = 30;   // Delay between reporting
+unsigned long rpDelay     = 60;   // Delay between reporting
 unsigned long rpDelayStep = 30;   // Step to increase the delay between reporting
-unsigned long rpDelayMin  = 30;   // Minimum delay between reporting
+unsigned long rpDelayMin  = 60;   // Minimum delay between reporting
 unsigned long rpDelayMax  = 1800; // Maximum delay between reporting
 
 // Smooth accuracy and course
@@ -600,7 +600,7 @@ void setup() {
   // Configure APRS
   aprs.init(APRS_SERVER, APRS_PORT);
   // Use an automatic callsign
-  aprs.setCallSign();
+  aprs.setCallSign(CALLSIGN);
   Serial.print(F("$PAPRS,AUTH,")); Serial.print(aprs.aprsCallSign);
   Serial.print(","); Serial.print(aprs.aprsPassCode);
   //Serial.print(","); Serial.print(aprs.aprsObjectNm);

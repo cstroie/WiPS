@@ -27,7 +27,7 @@
 #include "version.h"
 
 // APRS constants
-const char aprsPath[]     PROGMEM = ">CBAPRS,TCPIP*:";
+const char aprsPath[]     PROGMEM = ">WIDE1-1,TCPIP*:";
 const char aprsTlmPARM[]  PROGMEM = "PARM.Vcc,RSSI,Heap,Acc,Spd,PROBE,FIX,FST,SLW,VCC,HT,RB,TM";
 const char aprsTlmEQNS[]  PROGMEM = "EQNS.0,0.004,2.5,0,-1,0,0,256,0,0,1,0,0.0008,0,0";
 const char aprsTlmUNIT[]  PROGMEM = "UNIT.V,dBm,Bytes,m,m/s,prb,on,fst,slw,bad,ht,rb,er";
