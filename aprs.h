@@ -41,18 +41,18 @@
 #include "version.h"
 
 // APRS constants
-const char aprsPath[]     PROGMEM = ">WIDE1-1,TCPIP*:";
-const char aprsTlmPARM[]  PROGMEM = "PARM.Vcc,RSSI,Heap,Acc,Spd,PROBE,FIX,FST,SLW,VCC,HT,RB,TM";
-const char aprsTlmEQNS[]  PROGMEM = "EQNS.0,0.004,2.5,0,-1,0,0,256,0,0,1,0,0.0008,0,0";
-const char aprsTlmUNIT[]  PROGMEM = "UNIT.V,dBm,Bytes,m,m/s,prb,on,fst,slw,bad,ht,rb,er";
-const char aprsTlmBITS[]  PROGMEM = "BITS.11111111, ";
+static const char aprsPath[]     PROGMEM = ">WIDE1-1,TCPIP*:";
+static const char aprsTlmPARM[]  PROGMEM = "PARM.Vcc,RSSI,Heap,Acc,Spd,PROBE,FIX,FST,SLW,VCC,HT,RB,TM";
+static const char aprsTlmEQNS[]  PROGMEM = "EQNS.0,0.004,2.5,0,-1,0,0,256,0,0,1,0,0.0008,0,0";
+static const char aprsTlmUNIT[]  PROGMEM = "UNIT.V,dBm,Bytes,m,m/s,prb,on,fst,slw,bad,ht,rb,er";
+static const char aprsTlmBITS[]  PROGMEM = "BITS.11111111, ";
 
 // Various constants
-const char pstrD[]  PROGMEM = "%d";
-const char pstrDD[] PROGMEM = "%d.%d";
-const char pstrSP[] PROGMEM = " ";
-const char pstrCL[] PROGMEM = ":";
-const char pstrSL[] PROGMEM = "/";
+static const char pstrD[]  PROGMEM = "%d";
+static const char pstrDD[] PROGMEM = "%d.%d";
+static const char pstrSP[] PROGMEM = " ";
+static const char pstrCL[] PROGMEM = ":";
+static const char pstrSL[] PROGMEM = "/";
 //const char eol[]    PROGMEM = "\r\n";
 
 class APRS {
@@ -64,10 +64,10 @@ class APRS {
     bool connect(const char *server, int port);
     bool connect();
     void stop();
-    void setCallSign(const char *callsign = NULL);
+    void setCallSign(const char *callsign);
     void setPassCode(const char *passcode);
     int  doPassCode(char *callsign);
-    void setObjectName(const char *callsign = NULL);
+    void setObjectName(const char *object);
     bool send(const char *pkt);
     bool send();
     void time(unsigned long utm, char *buf, size_t len);
@@ -79,8 +79,8 @@ class APRS {
     void coordinates(char *buf, float lat, float lng, char table, char symbol);
     void coordinates(char *buf, float lat, float lng);
     void setLocation(float lat, float lng);
-    bool sendPosition(unsigned long utm, float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL, const char *object = NULL);
-    bool sendObjectPosition(unsigned long utm, float lat, float lng, int cse = 0, int spd = 0, float alt = -1, const char *comment = NULL);
+    bool sendPosition(unsigned long utm, float lat, float lng, int cse, int spd, float alt, const char *comment, const char *object);
+    bool sendObjectPosition(unsigned long utm, float lat, float lng, int cse, int spd, float alt, const char *comment);
     bool sendWeather(unsigned long utm, int temp, int hmdt, int pres, int srad);
     bool sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits);
     bool sendTelemetrySetup();

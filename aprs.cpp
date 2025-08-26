@@ -23,7 +23,8 @@
 #include "Arduino.h"
 #include "aprs.h"
 
-const char eol[]    PROGMEM = "\r\n";
+// Use the eol from the header file
+extern const char eol[] PROGMEM;
 
 /**
   Constructor - Initialize APRS object with default values
