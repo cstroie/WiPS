@@ -1,7 +1,25 @@
 /**
-  mls.h - Google Location Services
+  mls.h - Mozilla Location Services Geolocation
+         
+  This library provides WiFi-based geolocation functionality using
+  Mozilla Location Services (MLS) and Google Geolocation API.
+  
+  The geolocation process involves:
+  1. Scanning nearby WiFi access points and collecting their BSSID and RSSI
+  2. Sending this data to a geolocation service (MLS or Google)
+  3. Receiving latitude, longitude, and accuracy information
+  4. Calculating movement, distance, speed, and bearing between locations
+  5. Converting coordinates to Maidenhead locator and cardinal directions
 
-  Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
+  Features:
+  - WiFi AP scanning with BSSID and RSSI collection
+  - HTTPS geolocation using Mozilla Location Services or Google API
+  - Distance and bearing calculations using spherical geometry
+  - Maidenhead grid locator conversion
+  - Cardinal direction mapping
+  - Movement detection and speed calculation
+
+  Copyright (c) 2017-2025 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
