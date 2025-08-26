@@ -97,6 +97,7 @@ unsigned long rpDelay     = 60;   // Delay between reporting
 unsigned long rpDelayStep = 30;   // Step to increase the delay between reporting
 unsigned long rpDelayMin  = 60;   // Minimum delay between reporting
 unsigned long rpDelayMax  = 1800; // Maximum delay between reporting
+unsigned long nmeaNextTime = 0;   // Next time to send NMEA sentences
 
 // Smooth accuracy and course
 int sAcc = -1;
@@ -638,6 +639,60 @@ void loop() {
 
   // Uptime
   unsigned long now = millis() / 1000;
+
+  // Send NMEA sentences every second
+  if (now >= nmeaNextTime) {
+    // Get current time
+    unsigned long utm = ntp.getSeconds();
+    
+    // Send NMEA sentences even if location hasn't changed
+    char bufServer[200];
+    int lenServer;
+    
+    // Use last known location or default values if no fix yet
+    float lat = mls.current.valid ? mls.current.latitude : 0.0;
+    float lng = mls.current.valid ? mls.current.longitude : 0.0;
+    int found = mls.current.valid ? 1 : 0;
+    
+    // GGA
+    if (nmeaReport.gga) {
+      lenServer = nmea.getGGA(bufServer, 200, utm, lat, lng, found, found);
+      Serial.print(bufServer);
+      if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+      broadcast(bufServer, lenServer);
+    }
+    // RMC
+    if (nmeaReport.rmc) {
+      lenServer = nmea.getRMC(bufServer, 200, utm, lat, lng, mls.knots, sCrs);
+      Serial.print(bufServer);
+      if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+      broadcast(bufServer, lenServer);
+    }
+    // GLL
+    if (nmeaReport.gll) {
+      lenServer = nmea.getGLL(bufServer, 200, utm, lat, lng);
+      Serial.print(bufServer);
+      if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+      broadcast(bufServer, lenServer);
+    }
+    // VTG
+    if (nmeaReport.vtg) {
+      lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
+      Serial.print(bufServer);
+      if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+      broadcast(bufServer, lenServer);
+    }
+    // ZDA
+    if (nmeaReport.zda) {
+      lenServer = nmea.getZDA(bufServer, 200, utm);
+      Serial.print(bufServer);
+      if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+      broadcast(bufServer, lenServer);
+    }
+    
+    // Schedule next NMEA output
+    nmeaNextTime = now + 1;
+  }
 
   // Check if we should geolocate
   if (now >= geoNextTime) {
