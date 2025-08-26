@@ -785,7 +785,7 @@ void loop() {
 #ifdef HAVE_OLED
         else {
           // Display the locator
-          u8x8.setCursor(0, 2); u8x8.print("Loc "); u8x8.print(mls.locator);
+          u8x8.setCursor(0, 2); u8x8.print("Loc "); u8x8.print((char*)mls.locator);
         }
 #endif
         Serial.print("\r\n");
