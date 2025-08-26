@@ -697,7 +697,7 @@ void loop() {
       // Display
       u8x8.clear();
       char bufClock[20];
-      ntp.getClock(bufClock, 20, utm);
+      ntp.getClock(bufClock, sizeof(bufClock), utm);
       u8x8.setCursor(0, 3); u8x8.print("UTC "); u8x8.print(bufClock);
 #endif
 
@@ -743,7 +743,7 @@ void loop() {
 #ifdef HAVE_OLED
         else {
           // Display the locator
-          u8x8.setCursor(0, 2); u8x8.print("Loc "); u8x8.print((char*)mls.locator);
+          u8x8.setCursor(0, 2); u8x8.print("Loc "); u8x8.print(mls.locator);
         }
 #endif
         Serial.print("\r\n");
@@ -848,16 +848,13 @@ void sendNMEASentences(unsigned long utm, bool useCurrentLocation) {
   float lng = 0.0;
   int found = 0;
   
-  if (useCurrentLocation && mls.current.valid) {
-    lat = mls.current.latitude;
-    lng = mls.current.longitude;
-    found = 1;
-  } else if (!useCurrentLocation && mls.current.valid) {
+  // If we have a valid location, use it regardless of useCurrentLocation flag
+  if (mls.current.valid) {
     lat = mls.current.latitude;
     lng = mls.current.longitude;
     found = 1;
   }
-  // If no valid location, use default values (0.0, 0.0)
+  // If no valid location, use default values (0.0, 0.0) and found = 0
   
   // GGA
   if (nmeaReport.gga) {
@@ -866,28 +863,28 @@ void sendNMEASentences(unsigned long utm, bool useCurrentLocation) {
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
-  // RMC
-  if (nmeaReport.rmc) {
+  // RMC - only send if we have a valid location
+  if (nmeaReport.rmc && found) {
     lenServer = nmea.getRMC(bufServer, 200, utm, lat, lng, mls.knots, sCrs);
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
-  // GLL
-  if (nmeaReport.gll) {
+  // GLL - only send if we have a valid location
+  if (nmeaReport.gll && found) {
     lenServer = nmea.getGLL(bufServer, 200, utm, lat, lng);
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
-  // VTG
-  if (nmeaReport.vtg) {
+  // VTG - only send if we have a valid location and are moving
+  if (nmeaReport.vtg && found && mls.knots > 0) {
     lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
-  // ZDA
+  // ZDA - always send as it only requires time
   if (nmeaReport.zda) {
     lenServer = nmea.getZDA(bufServer, 200, utm);
     Serial.print(bufServer);
