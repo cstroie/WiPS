@@ -1,7 +1,21 @@
 /**
   aprs.h - Automated Position Reporting System
+         
+  This library provides functionality for connecting to APRS-IS servers,
+  authenticating with callsign and passcode, and sending various types
+  of APRS packets including position reports, weather data, telemetry,
+  status messages, and object positions.
 
-  Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
+  Features:
+  - Secure and insecure APRS-IS connections
+  - Automatic passcode generation from callsign
+  - Position reporting with timestamp, coordinates, course, speed, altitude
+  - Telemetry data transmission with sequence numbering
+  - Weather data reporting
+  - Status and message transmission
+  - Custom object naming and symbol selection
+
+  Copyright (c) 2017-2025 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by

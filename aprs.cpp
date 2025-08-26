@@ -1,7 +1,10 @@
 /**
   aprs.cpp - Automated Position Reporting System
+         
+  Implementation of APRS-IS client functionality for position reporting,
+  telemetry data transmission, weather reporting, and messaging.
 
-  Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2025 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
