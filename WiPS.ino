@@ -185,11 +185,16 @@ bool wifiCheckHTTP(char* server, int port, int timeout = 10000) {
   bool result = false;
   WiFiClientSecure testClient;
   testClient.setTimeout(timeout);
-  // Only use insecure connection for testing
+  
+  // Only use insecure connection when explicitly configured for testing
+  #ifdef GEO_INSECURE
   if (strcmp(GEO_SERVER, "www.googleapis.com") == 0 && 
       strcmp(GEO_APIKEY, "USE_YOUR_GOOGLE_KEY") == 0) {
     testClient.setInsecure();
+    Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection for geolocation testing"));
   }
+  #endif
+  
   char buf[64] = "";
   if (testClient.connect(server, port)) {
     Serial.printf_P(PSTR("$PHTTP,CON,%s,%d\r\n"), server, port);
@@ -198,7 +203,7 @@ bool wifiCheckHTTP(char* server, int port, int timeout = 10000) {
     testClient.print("Host: "); testClient.print(server); testClient.print("\r\n");
     testClient.print("Connection: close\r\n\r\n");
     // Check the response
-    int rlen = testClient.readBytesUntil('\r', buf, 64);
+    int rlen = testClient.readBytesUntil('\r', buf, sizeof(buf) - 1);
     if (rlen > 0) {
       buf[rlen] = '\0';
       result = true;
@@ -554,15 +559,23 @@ void setup() {
   setLED(0);
 
   // Try to connect, for ever
-  while (not wifiConnect(300));
+  unsigned int connectionAttempts = 0;
+  while (not wifiConnect(300)) {
+    connectionAttempts++;
+    Serial.printf_P(PSTR("$PERR,WIFI,Connection attempt %d failed, retrying...\r\n"), connectionAttempts);
+    delay(5000); // Wait 5 seconds before retrying
+  }
 
   // OTA Update
   ArduinoOTA.setPort(otaPort);
   ArduinoOTA.setHostname(NODENAME);
 #ifdef OTA_PASS
-  if (strlen(OTA_PASS) >= 8) {  // Require minimum password length
+  if (strlen(OTA_PASS) >= 8) {  // Require minimum password length for security
     ArduinoOTA.setPassword((const char *)OTA_PASS);
     otaSecure = true;
+    Serial.println(F("$POTA,SEC,Password protection enabled"));
+  } else if (strlen(OTA_PASS) > 0) {
+    Serial.println(F("$PSEC,WARNING,OTA password too short, minimum 8 characters required"));
   }
 #endif
 
@@ -871,35 +884,35 @@ void sendNMEASentences(unsigned long utm, bool useCurrentLocation) {
   
   // GGA
   if (nmeaReport.gga) {
-    lenServer = nmea.getGGA(bufServer, 200, utm, lat, lng, found, found);
+    lenServer = nmea.getGGA(bufServer, sizeof(bufServer), utm, lat, lng, found, found);
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
   // RMC - only send if we have a valid location
   if (nmeaReport.rmc && found) {
-    lenServer = nmea.getRMC(bufServer, 200, utm, lat, lng, mls.knots, sCrs);
+    lenServer = nmea.getRMC(bufServer, sizeof(bufServer), utm, lat, lng, mls.knots, sCrs);
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
   // GLL - only send if we have a valid location
   if (nmeaReport.gll && found) {
-    lenServer = nmea.getGLL(bufServer, 200, utm, lat, lng);
+    lenServer = nmea.getGLL(bufServer, sizeof(bufServer), utm, lat, lng);
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
   // VTG - only send if we have a valid location and are moving
   if (nmeaReport.vtg && found && mls.knots > 0) {
-    lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
+    lenServer = nmea.getVTG(bufServer, sizeof(bufServer), sCrs, mls.knots, (int)(mls.speed * 3.6));
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
   // ZDA - always send as it only requires time
   if (nmeaReport.zda) {
-    lenServer = nmea.getZDA(bufServer, 200, utm);
+    lenServer = nmea.getZDA(bufServer, sizeof(bufServer), utm);
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);

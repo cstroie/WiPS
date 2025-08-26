@@ -46,10 +46,15 @@ bool APRS::connect(const char *server, int port) {
 bool APRS::connect() {
   bool result = aprsClient.connect(aprsServer, aprsPort);
   if (!result) error = true;
-  // APRS connections should verify certificates in production
+  
+  // Check if we should use secure connection
+  #ifndef APRS_INSECURE
+  // TODO: Implement proper certificate validation for production use
   // For now, we keep the insecure connection but warn the user
   aprsClient.setInsecure();
   Serial.println(F("$PSEC,WARNING,Using insecure connection for APRS"));
+  #endif
+  
   return result;
 }
 
