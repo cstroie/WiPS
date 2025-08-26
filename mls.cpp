@@ -1,5 +1,5 @@
 /**
-  mls.cpp - Mozilla Location Services
+  mls.cpp - Google Location Services
 
   Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
 
@@ -143,7 +143,7 @@ int MLS::geoLocation() {
 
     // The geolocation request payload
     // First line in json
-    strcpy_P(buf, PSTR("{\"wifiAccessPoints\": [\n"));
+    strcpy_P(buf, PSTR("{\"considerIp\": false, \"wifiAccessPoints\": [\n"));
     geoClient.print(buf);
     //Serial.print(buf);
     // One line per network
@@ -163,6 +163,12 @@ int MLS::geoLocation() {
       strcat_P(buf, PSTR("\", \"signalStrength\": "));
       itoa(nets[i].rssi, sbuf, 10);
       strncat(buf, sbuf, 4);
+      // Age (optional, set to 0)
+      strcat_P(buf, PSTR(", \"age\": 0"));
+      // Channel (optional, set to 0)
+      strcat_P(buf, PSTR(", \"channel\": 0"));
+      // Signal to noise ratio (optional, set to 0)
+      strcat_P(buf, PSTR(", \"signalToNoiseRatio\": 0"));
       // Close line
       strcat(buf, "}");
       if (i < netCount - 1) strcat(buf, ",\n");
@@ -192,7 +198,11 @@ int MLS::geoLocation() {
       if      (strstr_P(buf, PSTR("\"lat\"")))      lat = geoClient.parseFloat();
       else if (strstr_P(buf, PSTR("\"lng\"")))      lng = geoClient.parseFloat();
       else if (strstr_P(buf, PSTR("\"accuracy\""))) acc = geoClient.parseInt();
-      else if (strstr_P(buf, PSTR("\"code\"")))     err = geoClient.parseInt();
+      else if (strstr_P(buf, PSTR("\"error\""))) {
+        // Read the error code
+        geoClient.find("\"code\":");
+        err = geoClient.parseInt();
+      }
     }
     //Serial.println();
 

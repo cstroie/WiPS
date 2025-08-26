@@ -1,5 +1,5 @@
 /**
-  mls.h - Mozilla Location Services
+  mls.h - Google Location Services
 
   Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
 
@@ -28,9 +28,9 @@
 #include "config.h"
 
 // Define GeoLocation server
-#define GEO_SERVER    "location.services.mozilla.com"
+#define GEO_SERVER    "www.googleapis.com"
 #define GEO_PORT      443
-#define GEO_POST      "POST /v1/geolocate?key=" GEO_APIKEY " HTTP/1.1"
+#define GEO_POST      "POST /geolocation/v1/geolocate?key=" GEO_APIKEY " HTTP/1.1"
 
 const char geoServer[]        = GEO_SERVER;
 const int  geoPort            = GEO_PORT;

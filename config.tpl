@@ -26,7 +26,7 @@
 #define WIFI_SSIDPASS "ssid1,psk1;ssid2,psk2"
 
 // Geolocation
-#define GEO_APIKEY    "USE_YOUR_KEY"
+#define GEO_APIKEY    "USE_YOUR_GOOGLE_KEY"
 #define GEO_MAXACC    250
 #define GEO_MINACC    50
 
