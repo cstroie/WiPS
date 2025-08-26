@@ -646,49 +646,7 @@ void loop() {
     unsigned long utm = ntp.getSeconds();
     
     // Send NMEA sentences even if location hasn't changed
-    char bufServer[200];
-    int lenServer;
-    
-    // Use last known location or default values if no fix yet
-    float lat = mls.current.valid ? mls.current.latitude : 0.0;
-    float lng = mls.current.valid ? mls.current.longitude : 0.0;
-    int found = mls.current.valid ? 1 : 0;
-    
-    // GGA
-    if (nmeaReport.gga) {
-      lenServer = nmea.getGGA(bufServer, 200, utm, lat, lng, found, found);
-      Serial.print(bufServer);
-      if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-      broadcast(bufServer, lenServer);
-    }
-    // RMC
-    if (nmeaReport.rmc) {
-      lenServer = nmea.getRMC(bufServer, 200, utm, lat, lng, mls.knots, sCrs);
-      Serial.print(bufServer);
-      if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-      broadcast(bufServer, lenServer);
-    }
-    // GLL
-    if (nmeaReport.gll) {
-      lenServer = nmea.getGLL(bufServer, 200, utm, lat, lng);
-      Serial.print(bufServer);
-      if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-      broadcast(bufServer, lenServer);
-    }
-    // VTG
-    if (nmeaReport.vtg) {
-      lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
-      Serial.print(bufServer);
-      if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-      broadcast(bufServer, lenServer);
-    }
-    // ZDA
-    if (nmeaReport.zda) {
-      lenServer = nmea.getZDA(bufServer, 200, utm);
-      Serial.print(bufServer);
-      if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-      broadcast(bufServer, lenServer);
-    }
+    sendNMEASentences(utm, false);
     
     // Schedule next NMEA output
     nmeaNextTime = now + 1;
@@ -791,43 +749,7 @@ void loop() {
         Serial.print("\r\n");
 
         // Compose and send the NMEA sentences
-        char bufServer[200];
-        int lenServer;
-        // GGA
-        if (nmeaReport.gga) {
-          lenServer = nmea.getGGA(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, 1, found);
-          Serial.print(bufServer);
-          if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-          broadcast(bufServer, lenServer);
-        }
-        // RMC
-        if (nmeaReport.rmc) {
-          lenServer = nmea.getRMC(bufServer, 200, utm, mls.current.latitude, mls.current.longitude, mls.knots, sCrs);
-          Serial.print(bufServer);
-          if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-          broadcast(bufServer, lenServer);
-        }
-        // GLL
-        if (nmeaReport.gll) {
-          lenServer = nmea.getGLL(bufServer, 200, utm, mls.current.latitude, mls.current.longitude);
-          Serial.print(bufServer);
-          if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-          broadcast(bufServer, lenServer);
-        }
-        // VTG
-        if (nmeaReport.vtg) {
-          lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
-          Serial.print(bufServer);
-          if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-          broadcast(bufServer, lenServer);
-        }
-        // ZDA
-        if (nmeaReport.zda) {
-          lenServer = nmea.getZDA(bufServer, 200, utm);
-          Serial.print(bufServer);
-          if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
-          broadcast(bufServer, lenServer);
-        }
+        sendNMEASentences(utm, true);
 
         // Read the Vcc (mV)
         int vcc  = ESP.getVcc();
@@ -916,4 +838,62 @@ void loop() {
     setLED(0);
   };
 }
+// Send NMEA sentences to all outputs
+void sendNMEASentences(unsigned long utm, bool useCurrentLocation) {
+  char bufServer[200];
+  int lenServer;
+  
+  // Use current location or last known location
+  float lat = 0.0;
+  float lng = 0.0;
+  int found = 0;
+  
+  if (useCurrentLocation && mls.current.valid) {
+    lat = mls.current.latitude;
+    lng = mls.current.longitude;
+    found = 1;
+  } else if (!useCurrentLocation && mls.current.valid) {
+    lat = mls.current.latitude;
+    lng = mls.current.longitude;
+    found = 1;
+  }
+  // If no valid location, use default values (0.0, 0.0)
+  
+  // GGA
+  if (nmeaReport.gga) {
+    lenServer = nmea.getGGA(bufServer, 200, utm, lat, lng, found, found);
+    Serial.print(bufServer);
+    if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+    broadcast(bufServer, lenServer);
+  }
+  // RMC
+  if (nmeaReport.rmc) {
+    lenServer = nmea.getRMC(bufServer, 200, utm, lat, lng, mls.knots, sCrs);
+    Serial.print(bufServer);
+    if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+    broadcast(bufServer, lenServer);
+  }
+  // GLL
+  if (nmeaReport.gll) {
+    lenServer = nmea.getGLL(bufServer, 200, utm, lat, lng);
+    Serial.print(bufServer);
+    if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+    broadcast(bufServer, lenServer);
+  }
+  // VTG
+  if (nmeaReport.vtg) {
+    lenServer = nmea.getVTG(bufServer, 200, sCrs, mls.knots, (int)(mls.speed * 3.6));
+    Serial.print(bufServer);
+    if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+    broadcast(bufServer, lenServer);
+  }
+  // ZDA
+  if (nmeaReport.zda) {
+    lenServer = nmea.getZDA(bufServer, 200, utm);
+    Serial.print(bufServer);
+    if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
+    broadcast(bufServer, lenServer);
+  }
+}
+
 // vim: set ft=arduino ai ts=2 sts=2 et sw=2 sta nowrap nu :
