@@ -1,7 +1,10 @@
 /**
-  ntp.cpp - Network Time Protocol
+  ntp.cpp - Network Time Protocol Client
+         
+  Implementation of NTP client functionality for time synchronization,
+  time zone handling, daylight saving time detection, and time formatting.
 
-  Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2025 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,25 +23,31 @@
 #include "Arduino.h"
 #include "ntp.h"
 
+/**
+  Constructor - Initialize NTP object with default values
+*/
 NTP::NTP() {
 }
 
 /**
-  Init the NTP module, set the server and port, and force a sync
-
-  @param ntpServer NTP server
-  @param ntpPort NTP port
+  Initialize NTP client with server and port
+  
+  Sets up the NTP server configuration and performs initial time synchronization.
+  
+  @param ntpServer NTP server hostname
+  @param ntpPort NTP server port (default 123)
+  @return Current Unix timestamp
 */
 unsigned long NTP::init(const char *ntpServer, int ntpPort) {
   setServer(ntpServer, ntpPort);
-  getSeconds(true);
+  return getSeconds(true);
 }
 
 /**
-  Set the NTP server and port
-
-  @param ntpServer NTP server
-  @param ntpPort NTP port
+  Set NTP server hostname and port
+  
+  @param ntpServer NTP server hostname
+  @param ntpPort NTP server port (default 123)
 */
 void NTP::setServer(const char *ntpServer, int ntpPort) {
   port = ntpPort;
@@ -46,18 +55,22 @@ void NTP::setServer(const char *ntpServer, int ntpPort) {
 }
 
 /**
-  Set the time zone
-
-  @param tz time zone in hours
+  Set time zone offset from UTC
+  
+  @param tz Time zone offset in hours (-12.0 to +12.0)
 */
 void NTP::setTZ(float tz) {
   TZ = tz;
 }
 
 /**
-  Report the time
-
-  @param utm UNIX time
+  Report time in NMEA-style format to serial port
+  
+  Sends a proprietary NMEA sentence with timestamp and formatted date/time.
+  
+  Format: $PNTPC,0x%08X,%d.%02d.%02d,%02d.%02d.%02d\r\n
+  
+  @param utm Unix timestamp to report
 */
 void NTP::report(unsigned long utm) {
   datetime_t dt = getDateTime(utm);
@@ -66,7 +79,12 @@ void NTP::report(unsigned long utm) {
 }
 
 /**
-  Get the clock
+  Format time as HH:MM:SS string
+  
+  @param buf Buffer to store formatted time string
+  @param len Buffer length
+  @param utm Unix timestamp
+  @return Length of formatted string
 */
 uint8_t NTP::getClock(char *buf, size_t len, unsigned long utm) {
   datetime_t dt = getDateTime(utm);
@@ -75,25 +93,29 @@ uint8_t NTP::getClock(char *buf, size_t len, unsigned long utm) {
 }
 
 /**
-  Get current time as UNIX time (1970 epoch)
-
-  @param sync flag to show whether network sync is to be performed
-  @return current UNIX time
+  Get current time in seconds since Unix epoch
+  
+  Returns the current time, synchronizing with NTP server if needed.
+  Time is tracked using millis() for sub-second precision between syncs.
+  
+  @param sync Whether to attempt time synchronization if needed (default true)
+  @return Unix timestamp
 */
 unsigned long NTP::getSeconds(bool sync) {
-  // Check if we need to sync
+  // Check if we need to sync with NTP server
   if (millis() >= nextSync and sync) {
     // Try to get the time from Internet
     unsigned long utm = getNTP();
     if (utm == 0) {
-      // Time sync has failed, sync again over one minute
+      // Time sync has failed, try again in one minute
       nextSync = millis() + 60000UL;
       valid = false;
     }
     else {
-      // Compute the new time delta
+      // Successfully got time from NTP server
+      // Compute the new time delta between real time and internal clock
       delta = utm - (millis() / 1000);
-      // Time sync has succeeded, sync again in 8 hours
+      // Schedule next sync in 8 hours (28800000 ms)
       nextSync = millis() + 28800000UL;
       valid = true;
       report(utm);
@@ -101,6 +123,7 @@ unsigned long NTP::getSeconds(bool sync) {
   }
   // Get current time based on uptime and time delta,
   // or just uptime for no time sync ever
+  // Add time zone offset in seconds
   return (millis() / 1000) + delta + (long)(TZ * 3600);
 }
 
@@ -114,6 +137,8 @@ unsigned long NTP::getSeconds(bool sync) {
   for transmision, the rest is random garbage collected from the data
   memory segment, and the received packet is read one byte at a time.
   The Unix time is returned, that is, seconds from 1970-01-01T00:00.
+  
+  @return Unix timestamp or 0 on failure
 */
 unsigned long NTP::getNTP() {
   // NTP UDP client
@@ -159,48 +184,64 @@ unsigned long NTP::getNTP() {
   // Discard the rest of the packet and stop
   client.flush();
   client.stop();
-  return ntpTime - 2208988800UL;            // convert to Unix time
+  return ntpTime - 2208988800UL;            // convert NTP time to Unix time
 }
 
 /**
-  Get the uptime
-
-  @param buf character array to return the text to
-  @param len the maximum length of the character array
-  @return uptime in seconds
+  Get system uptime formatted as days, hours, minutes, seconds
+  
+  @param buf Buffer to store formatted uptime string
+  @param len Buffer length
+  @return Uptime in seconds
 */
 unsigned long NTP::getUptime(char *buf, size_t len) {
   // Get the uptime in seconds
   unsigned long upt = millis() / 1000;
+  
   // Compute days, hours, minutes and seconds
   int ss =  upt % 60;
   int mm = (upt % 3600) / 60;
   int hh = (upt % 86400L) / 3600;
   int dd =  upt / 86400L;
-  // Create the formatted time
+  
+  // Create the formatted time string with proper pluralization
   if (dd == 1) snprintf_P(buf, len, PSTR("%d day, %02d:%02d:%02d"),  dd, hh, mm, ss);
   else         snprintf_P(buf, len, PSTR("%d days, %02d:%02d:%02d"), dd, hh, mm, ss);
+  
   // Return the uptime in seconds
   return upt;
 }
 
 /**
-  Get the date and time from UNIX time
-
-  @param utm UNIX time
-  @return date and time structure
+  Convert Unix timestamp to date/time components
+  
+  Breaks down a Unix timestamp into year, month, day, hour, minute, second
+  components and applies daylight saving time adjustment if applicable.
+  
+  @param utm Unix timestamp
+  @return datetime_t structure with date/time components
 */
 datetime_t NTP::getDateTime(unsigned long utm) {
   datetime_t dt;
   static const uint8_t daysInMonth[] PROGMEM = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-  // Bring to year 2000 epoch
+  
+  // Convert to year 2000 epoch (Unix epoch is 1970, we use 2000)
   utm -= 946684800UL;
-  dt.ss = utm % 60;
+  
+  // Extract time components
+  dt.ss = utm % 60;        // Seconds
   utm /= 60;
-  dt.mm = utm % 60;
+  dt.mm = utm % 60;        // Minutes
   utm /= 60;
-  dt.hh = utm % 24;
-  uint16_t days = utm / 24;
+  dt.hh = utm % 24;        // Hours
+  uint16_t days = utm / 24; // Days since 2000-01-01
+  
+  // Compute the date by counting years and months
+  dt.yy = 0;  // Years since 2000
+  dt.ll = 1;  // Month (1-based)
+  dt.dd = 1;  // Day (1-based)
+  
+  // Account for leap years when counting years
   uint8_t leap;
   for (dt.yy = 0; ; ++dt.yy) {
     leap = dt.yy % 4 == 0;
@@ -208,6 +249,8 @@ datetime_t NTP::getDateTime(unsigned long utm) {
       break;
     days -= 365 + leap;
   }
+  
+  // Count months
   for (dt.ll = 1; ; ++dt.ll) {
     uint8_t daysPerMonth = pgm_read_byte(daysInMonth + dt.ll - 1);
     if (leap && dt.ll == 2)
@@ -216,21 +259,28 @@ datetime_t NTP::getDateTime(unsigned long utm) {
       break;
     days -= daysPerMonth;
   }
-  dt.dd = days + 1;
+  
+  dt.dd = days + 1; // Convert to 1-based day
+  
   return dt;
 }
 
 /**
   Determine the day of the week using the Tomohiko Sakamoto's method
 
-  @param y year  >1752
-  @param m month 1..12
-  @param d day   1..31
-  @return day of the week, 0..6 (Sun..Sat)
+  @param year Year (e.g., 2023)
+  @param month Month (1-12)
+  @param day Day (1-31)
+  @return Day of week, 0..6 (Sun..Sat)
 */
 uint8_t NTP::getDOW(uint16_t year, uint8_t month, uint8_t day) {
+  // Tomohiko Sakamoto's algorithm lookup table
   uint8_t t[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+  
+  // Adjust year for January and February
   year -= month < 3;
+  
+  // Apply Tomohiko Sakamoto's formula
   return (year + year / 4 - year / 100 + year / 400 + t[month - 1] + day) % 7;
 }
 
@@ -241,21 +291,24 @@ uint8_t NTP::getDOW(uint16_t year, uint8_t month, uint8_t day) {
     start: last Sunday in March,   0300 -> 0400
     end:   last Sunday in October, 0400 -> 0300
 
-  @param year  year  >1752
-  @param month month 1..12
-  @param day   day   1..31
+  @param year Year (e.g., 2023)
+  @param month Month (1-12)
+  @param day Day (1-31)
+  @param hour Hour (0-23)
   @return bool DST yes or no
 */
 bool NTP::dstCheck(uint16_t year, uint8_t month, uint8_t day, uint8_t hour) {
-  // Get the last Sunday in March
+  // Get the last Sunday in March (DST start)
   uint8_t dayBegin = 31 - getDOW(year, 3, 31);
-  // Get the last Sunday on October
+  
+  // Get the last Sunday in October (DST end)
   uint8_t dayEnd = 31 - getDOW(year, 10, 31);
+  
   // Compute the day where DST changes, since we are checking only
-  // at 3 and 4'o clock, this is enough
-  return (month > 3   and month < 10) or                      // Summer
-         (month == 3  and day >  dayBegin) or                 // March
-         (month == 3  and day == dayBegin and hour >= 3) or
-         (month == 10 and day <  dayEnd) or                   // October
-         (month == 10 and day == dayEnd and hour < 4);
+  // at 3 and 4 o'clock, this is enough
+  return (month > 3   and month < 10) or                      // Summer months (April-September)
+         (month == 3  and day >  dayBegin) or                 // After last Sunday in March
+         (month == 3  and day == dayBegin and hour >= 3) or   // On last Sunday in March after 3AM
+         (month == 10 and day <  dayEnd) or                   // Before last Sunday in October
+         (month == 10 and day == dayEnd and hour < 4);        // On last Sunday in October before 4AM
 }
