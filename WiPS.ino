@@ -1,12 +1,20 @@
 /**
   WiPS - Wireless Positioning System and Automated Position Reporting System
-         based on Wifi geolocation, using Mozilla Location Services.
+         based on WiFi geolocation, using Mozilla Location Services and Google Geolocation API.
 
-  Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
+  This project provides:
+  - WiFi-based geolocation using nearby access points
+  - NMEA-0183 sentence generation for GPS compatibility
+  - APRS position reporting with telemetry data
+  - TCP NMEA server and UDP broadcast capabilities
+  - Over-The-Air (OTA) firmware updates
+  - Network Time Protocol (NTP) synchronization
+
+  Copyright (c) 2017-2025 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, orl
+  the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
   This program is distributed in the hope that it will be useful,
@@ -177,9 +185,12 @@ bool tryWPSPBC() {
 }
 
 /**
-  Try to connect to a HTTPS server
+  Test HTTPS server connectivity
 
-  @param timeout connection timeout
+  @param server Server hostname to test
+  @param port Server port to connect to
+  @param timeout Connection timeout in milliseconds
+  @return true if connection successful, false otherwise
 */
 bool wifiCheckHTTP(char* server, int port, int timeout = 10000) {
   bool result = false;
@@ -221,12 +232,12 @@ bool wifiCheckHTTP(char* server, int port, int timeout = 10000) {
 }
 
 /**
-  Try to connect to WiFi network
+  Attempt to connect to a WiFi network
 
-  @param ssid the WiFi SSID
-  @param pass the WiFi psk
-  @param timeout connection timeout
-  @return connection result
+  @param ssid WiFi SSID (NULL to use stored credentials)
+  @param pass WiFi password
+  @param timeout Connection timeout in seconds
+  @return true if connection successful, false otherwise
 */
 bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeout = 15) {
   bool result = false;
@@ -291,9 +302,9 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
 }
 
 /**
-  Try to connect to a list of known wifi networks
+  Attempt to connect to a list of pre-configured WiFi networks
 
-  @result connection result to a known WiFi
+  @return true if connection to any known network successful, false otherwise
 */
 bool wifiTryKnownNetworks() {
   bool result = false;
@@ -411,9 +422,9 @@ bool wifiTryKnownNetworks() {
 }
 
 /**
-  Try to connect to open wifi networks
+  Attempt to connect to open (unsecured) WiFi networks
 
-  @result connection result to an open WiFi
+  @return true if connection to any open network successful, false otherwise
 */
 bool wifiTryOpenNetworks() {
   bool result = false;
@@ -456,7 +467,17 @@ void wifiCallback(WiFiManager * wifiMgr) {
 }
 
 /**
-  Try to connect to WiFi
+  Main WiFi connection handler with multiple fallback methods
+
+  Connection attempts in order:
+  1. Pre-configured credentials (if WIFI_SSID defined)
+  2. Stored WiFi credentials
+  3. Known networks list
+  4. Open networks
+  5. WiFi Manager captive portal
+
+  @param timeout WiFi Manager timeout in seconds
+  @return true if connection successful, false otherwise
 */
 bool wifiConnect(int timeout = 300) {
   // Set the host name
