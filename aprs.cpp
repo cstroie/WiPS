@@ -25,27 +25,64 @@
 
 const char eol[]    PROGMEM = "\r\n";
 
+/**
+  Constructor - Initialize APRS object with default values
+*/
 APRS::APRS() {
+  error = false;
+  aprsTable = '/';
+  aprsSymbol = '>';
 }
 
+/**
+  Initialize APRS with server and port
+  
+  @param server APRS-IS server hostname
+  @param port APRS-IS server port
+*/
 void APRS::init(const char *server, int port) {
   setServer(server, port);
 }
 
+/**
+  Set APRS-IS server hostname
+  
+  @param server APRS-IS server hostname
+*/
 void APRS::setServer(const char *server) {
   strncpy(aprsServer, (char*)server, sizeof(aprsServer));
 }
 
+/**
+  Set APRS-IS server hostname and port
+  
+  @param server APRS-IS server hostname
+  @param port APRS-IS server port
+*/
 void APRS::setServer(const char *server, int port) {
   aprsPort = port;
   setServer(server);
 }
 
+/**
+  Connect to APRS-IS server with specified parameters
+  
+  @param server APRS-IS server hostname
+  @param port APRS-IS server port
+  @return true if connection successful, false otherwise
+*/
 bool APRS::connect(const char *server, int port) {
   setServer(server, port);
   return connect();
 }
 
+/**
+  Connect to APRS-IS server using previously set parameters
+  
+  Establishes TCP connection to APRS-IS server and configures security settings.
+  
+  @return true if connection successful, false otherwise
+*/
 bool APRS::connect() {
   bool result = aprsClient.connect(aprsServer, aprsPort);
   if (!result) error = true;
@@ -61,15 +98,23 @@ bool APRS::connect() {
   return result;
 }
 
+/**
+  Disconnect from APRS-IS server
+*/
 void APRS::stop() {
   aprsClient.stop();
 }
 
 /**
   Set the APRS callsign and compute the passcode
+  
+  If no callsign is provided, generates an automatic callsign using the ESP8266 ChipID.
+  Automatically computes the APRS passcode using the CRC algorithm.
+  
+  @param callsign APRS callsign (NULL for automatic generation)
 */
 void APRS::setCallSign(const char *callsign) {
-  if (callsign == NULL and callsign[0] != '\0')
+  if (callsign == NULL || callsign[0] == '\0')
     // Create an automatic callsign, using the ChipID
     snprintf_P(aprsCallSign, sizeof(aprsCallSign), PSTR("TK%04X"), ESP.getChipId() & 0xFFFF);
   else
@@ -81,6 +126,8 @@ void APRS::setCallSign(const char *callsign) {
 
 /**
   Set your own passcode (not necessary)
+  
+  @param passcode APRS passcode
 */
 void APRS::setPassCode(const char *passcode) {
   // Keep the passcode
@@ -88,7 +135,13 @@ void APRS::setPassCode(const char *passcode) {
 }
 
 /**
-  Compute the passcode from the callsign
+  Compute the passcode from the callsign using CRC algorithm
+  
+  Implements the APRS passcode algorithm which is a 16-bit CRC with polynomial 0x73e2.
+  The callsign is processed without the SSID part.
+  
+  @param callsign APRS callsign
+  @return generated passcode
 */
 int APRS::doPassCode(char *callsign) {
   char rootCall[10]; // need to copy call to remove ssid from parse
@@ -97,12 +150,12 @@ int APRS::doPassCode(char *callsign) {
   int i, len;
   char *ptr = rootCall;
 
-  // Uppercase and find the bare callsign
+  // Uppercase and find the bare callsign (without SSID)
   while ((*callsign != '-') && (*callsign != '\0'))
     *p1++ = toupper((int)(*callsign++));
   *p1 = '\0';
 
-  // Initialize with the key value
+  // Initialize with the key value (0x73e2 is the APRS passcode polynomial)
   hash = 0x73e2;
   i = 0;
   len = (int)strlen(rootCall);
@@ -119,6 +172,11 @@ int APRS::doPassCode(char *callsign) {
 
 /**
   Set the APRS object name
+  
+  If no object name is provided, generates an automatic name using the ESP8266 ChipID.
+  The object name is padded to 9 characters as required by APRS specification.
+  
+  @param object Object name (NULL for automatic generation)
 */
 void APRS::setObjectName(const char *object) {
   if (object == NULL) {
@@ -129,7 +187,7 @@ void APRS::setObjectName(const char *object) {
     // Keep the object name
     strncpy(aprsObjectNm, (char*)object, sizeof(aprsObjectNm));
   }
-  // Pad with spaces
+  // Pad with underscores to 9 characters as required by APRS
   for (int i = strlen(aprsObjectNm); i < sizeof(aprsObjectNm) - 1; i++)
     aprsObjectNm[i] = '_';
   // Make sure it ends with null
@@ -139,7 +197,8 @@ void APRS::setObjectName(const char *object) {
 /**
   Send an APRS packet and, eventually, print it to serial line
 
-  @param *pkt the packet to send
+  @param pkt the packet to send
+  @return true if packet sent successfully, false otherwise
 */
 bool APRS::send(const char *pkt) {
   bool result;
@@ -159,6 +218,11 @@ bool APRS::send(const char *pkt) {
   return result & (~error);
 }
 
+/**
+  Send previously composed APRS packet
+  
+  @return true if packet sent successfully, false otherwise
+*/
 bool APRS::send() {
   return send(aprsPkt);
 }
@@ -167,7 +231,7 @@ bool APRS::send() {
   Return time in zulu APRS format: HHMMSSh
 
   @param utm UNIX time
-  @param *buf the buffer to return the time to
+  @param buf the buffer to return the time to
   @param len the buffer length
 */
 void APRS::time(unsigned long utm, char *buf, size_t len) {
@@ -175,13 +239,16 @@ void APRS::time(unsigned long utm, char *buf, size_t len) {
   int hh = (utm % 86400L) / 3600;
   int mm = (utm % 3600) / 60;
   int ss =  utm % 60;
-  // Return the formatted time
+  // Return the formatted time in APRS timestamp format (HHMMSSh)
   snprintf_P(buf, len, PSTR("%02d%02d%02dh"), hh, mm, ss);
 }
 
 /**
-  Send APRS authentication data
-  user FW0690 pass -1 vers WxSta 0.2"
+  Send APRS authentication data with specified credentials
+  
+  @param callsign APRS callsign
+  @param passcode APRS passcode
+  @return true if authentication successful, false otherwise
 */
 bool APRS::authenticate(const char *callsign, const char *passcode) {
   // Store the APRS callsign and passkey
@@ -189,9 +256,14 @@ bool APRS::authenticate(const char *callsign, const char *passcode) {
   strncpy(aprsPassCode, (char*)passcode, sizeof(aprsPassCode));
   return authenticate();
 }
+
 /**
-  Send APRS authentication data
-  user FW0690 pass -1 vers WxSta 0.2"
+  Send APRS authentication data using previously set credentials
+  
+  Sends the APRS login command and waits for server verification response.
+  Format: "user CALLSIGN pass PASSCODE vers NODENAME VERSION\r\n"
+  
+  @return true if authentication successful, false otherwise
 */
 bool APRS::authenticate() {
   bool result = false;
@@ -210,23 +282,8 @@ bool APRS::authenticate() {
     // Send the credentials
     if (send(aprsPkt)) {
       while (aprsClient.connected() and (not result))
-        // Check the response
+        // Check the response for "verified"
         result = aprsClient.findUntil("verified", "\r");
-      /*
-        int rlen = aprsClient.readBytesUntil('\n', aprsPkt, sizeof(aprsPkt));
-        aprsPkt[rlen] = '\0';
-        Serial.printf_P(PSTR("$PAPRS,%03d,%s\r\n"), rlen, aprsPkt);
-        // Tokenize the response
-        char* pch;
-        pch = strtok(aprsPkt, " ");
-        while (pch != NULL) {
-        if (strcmp(pch, "verified") == 0) {
-          result = true;
-          break;
-        }
-        pch = strtok(NULL, " ");
-        }
-      */
     }
   }
   return result;
@@ -234,6 +291,9 @@ bool APRS::authenticate() {
 
 /**
   Set the symbols table and the symbol
+  
+  @param table Symbol table identifier
+  @param symbol Symbol code
 */
 void APRS::setSymbol(const char table, const char symbol) {
   aprsTable  = table;
@@ -241,10 +301,13 @@ void APRS::setSymbol(const char table, const char symbol) {
 }
 
 /**
-  Send APRS status
-  FW0690>APRS,TCPIP*:>Fine weather
-
+  Send APRS status message
+  
+  Sends a status message packet in APRS format.
+  Format: "CALLSIGN>APRS,TCPIP*:>MESSAGE\r\n"
+  
   @param message the status message to send
+  @return true if message sent successfully, false otherwise
 */
 bool APRS::sendStatus(const char *message) {
   // Send only if the message is not empty
@@ -257,14 +320,19 @@ bool APRS::sendStatus(const char *message) {
     strcat_P(aprsPkt, eol);
     return send(aprsPkt);
   }
+  return false;
 }
 
 /**
-  Send an APRS message
-
-  @param dest the message destination, own call sign if empty
+  Send an APRS message to specified destination
+  
+  Sends a message packet in APRS format with proper addressing.
+  Destination call sign is padded to 9 characters as required.
+  
+  @param dest the message destination, own call sign if NULL
   @param title the message title, if not empty
   @param message the message body
+  @return true if message sent successfully, false otherwise
 */
 bool APRS::sendMessage(const char *dest, const char *title, const char *message) {
   // The object's call sign has to be padded with spaces until 9 chars long
@@ -293,7 +361,14 @@ bool APRS::sendMessage(const char *dest, const char *title, const char *message)
 }
 
 /**
-  Create the coordinates in APRS format, also setting the symbol
+  Create the coordinates in APRS format
+  
+  Converts decimal latitude/longitude to APRS coordinate format (DDMM.MMh).
+  Also sets the symbol table and symbol in the formatted string.
+  
+  @param buf Buffer to store formatted coordinates
+  @param lat Latitude in decimal degrees
+  @param lng Longitude in decimal degrees
 */
 void APRS::coordinates(char *buf, float lat, float lng) {
   // Compute integer and fractional coordinates
@@ -301,12 +376,21 @@ void APRS::coordinates(char *buf, float lat, float lng) {
   int latMM = (int)((fabs(lat) - latDD) * 6000);
   int lngDD = (int)(abs(lng));
   int lngMM = (int)((fabs(lng) - lngDD) * 6000);
-  // Return the formatted coordinates
+  // Return the formatted coordinates in APRS format
   sprintf_P(buf, PSTR("%02d%02d.%02d%c%c%03d%02d.%02d%c%c"),
             latDD, latMM / 100, latMM % 100, lat >= 0 ? 'N' : 'S', aprsTable,
             lngDD, lngMM / 100, lngMM % 100, lng >= 0 ? 'E' : 'W', aprsSymbol);
 }
 
+/**
+  Create the coordinates in APRS format with specified symbol
+  
+  @param buf Buffer to store formatted coordinates
+  @param lat Latitude in decimal degrees
+  @param lng Longitude in decimal degrees
+  @param table Symbol table identifier
+  @param symbol Symbol code
+*/
 void APRS::coordinates(char *buf, float lat, float lng, char table, char symbol) {
   // Set the symbol
   setSymbol(table, symbol);
@@ -314,16 +398,16 @@ void APRS::coordinates(char *buf, float lat, float lng, char table, char symbol)
   coordinates(buf, lat, lng);
 }
 
+/**
+  Set current location for position reporting
+  
+  @param lat Latitude in decimal degrees
+  @param lng Longitude in decimal degrees
+*/
 void APRS::setLocation(float lat, float lng) {
   coordinates(aprsLocation, lat, lng);
 }
 
-/**
-  Send APRS position and altitude
-  FW0690>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$/A=000000 comment
-
-  @param comment the comment to append
-*/
 /**
   Send APRS position report with optional altitude, course, speed and comment
 
@@ -341,16 +425,17 @@ void APRS::setLocation(float lat, float lng) {
   @return true if packet sent successfully, false otherwise
 */
 bool APRS::sendPosition(unsigned long utm, float lat, float lng, int cse, int spd, float alt, const char *comment, const char *object) {
-  // Local buffer
+  // Local buffer for temporary strings
   const int bufSize = 20;
   char buf[bufSize] = "";
 
-  // Compose the APRS packet
+  // Compose the APRS packet header
   strcpy_P(aprsPkt, aprsCallSign);
   strcat_P(aprsPkt, aprsPath);
 
-  // Object
+  // Object or position report
   if (object != NULL) {
+    // Object report format: ;OBJECTNAME*TIMESTAMP
     strcat_P(aprsPkt, PSTR(";"));
     strcat(aprsPkt, object);
     strcat_P(aprsPkt, PSTR("*"));
@@ -358,33 +443,36 @@ bool APRS::sendPosition(unsigned long utm, float lat, float lng, int cse, int sp
     strncat(aprsPkt, buf, bufSize);
   }
   else {
+    // Position report format: !
     strcat_P(aprsPkt, PSTR("!"));
   }
 
-  // Coordinates in APRS format
+  // Coordinates in APRS format with default symbol
   setSymbol('/', '>');
   setLocation(lat, lng);
   strcat_P(aprsPkt, aprsLocation);
-  // Course and speed
+  
+  // Course and speed if provided
   if (spd >= 0 and cse >= 0) {
     snprintf_P(buf, bufSize, PSTR("%03d/%03d"), cse, spd);
     strncat(aprsPkt, buf, bufSize);
   }
-  // Altitude
+  
+  // Altitude in feet if provided
   if (alt >= 0) {
     strcat_P(aprsPkt, PSTR("/A="));
     sprintf_P(buf, PSTR("%06ld"), (long)(alt * 3.28084));
     strncat(aprsPkt, buf, bufSize);
   }
-  //strcat_P(aprsPkt, pstrSP);
-  // Comment
+  
+  // Comment section
   if (comment != NULL)
     strcat(aprsPkt, comment);
   else {
+    // Default comment with device info
     strcat(aprsPkt, NODENAME);
     strcat_P(aprsPkt, pstrSL);
     strcat(aprsPkt, VERSION);
-    //if (PROBE) strcat_P(aprsPkt, PSTR(" [PROBE]"));
   }
   strcat_P(aprsPkt, eol);
   return send(aprsPkt);
@@ -423,7 +511,7 @@ bool APRS::sendObjectPosition(unsigned long utm, float lat, float lng, int cse, 
 bool APRS::sendWeather(unsigned long utm, int temp, int hmdt, int pres, int srad) {
   const int bufSize = 10;
   char buf[bufSize] = "";
-  // Weather report
+  // Weather report header
   strcpy_P(aprsPkt, aprsCallSign);
   strcat_P(aprsPkt, aprsPath);
   strcat_P(aprsPkt, PSTR("@"));
@@ -432,16 +520,16 @@ bool APRS::sendWeather(unsigned long utm, int temp, int hmdt, int pres, int srad
   setSymbol('/', '_');
   strcat_P(aprsPkt, aprsLocation);
   strcat_P(aprsPkt, PSTR("_"));
-  // Wind (unavailable)
+  // Wind data (unavailable - using placeholders)
   strcat_P(aprsPkt, PSTR(".../...g..."));
-  // Temperature
+  // Temperature in Fahrenheit (APRS weather format)
   if (temp >= -460) { // 0K in F
     snprintf_P(buf, bufSize, PSTR("t%03d"), temp);
     strncat(aprsPkt, buf, bufSize);
   }
   else
     strcat_P(aprsPkt, PSTR("t..."));
-  // Humidity
+  // Humidity percentage
   if (hmdt >= 0) {
     if (hmdt == 100)
       strcat_P(aprsPkt, PSTR("h00"));
@@ -450,7 +538,7 @@ bool APRS::sendWeather(unsigned long utm, int temp, int hmdt, int pres, int srad
       strncat(aprsPkt, buf, bufSize);
     }
   }
-  // Athmospheric pressure
+  // Atmospheric pressure in tenths of hPa
   if (pres >= 0) {
     snprintf_P(buf, bufSize, PSTR("b%05d"), pres);
     strncat(aprsPkt, buf, bufSize);
@@ -466,7 +554,6 @@ bool APRS::sendWeather(unsigned long utm, int temp, int hmdt, int pres, int srad
   strcat_P(aprsPkt, eol);
   return send(aprsPkt);
 }
-
 
 /**
   Send APRS telemetry data packet with 5 parameters and 8-bit status field
@@ -503,7 +590,15 @@ bool APRS::sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits) {
 }
 
 /**
-  Send APRS telemetry setup
+  Send APRS telemetry setup packets
+  
+  Sends the four telemetry setup messages:
+  1. PARM - Parameter names
+  2. EQNS - Conversion equations
+  3. UNIT - Units of measurement
+  4. BITS - Bit definitions and project name
+  
+  @return true if all setup packets sent successfully, false otherwise
 */
 bool APRS::sendTelemetrySetup() {
   bool result = true;

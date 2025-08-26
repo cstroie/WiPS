@@ -87,19 +87,19 @@ class APRS {
     char aprsCallSign[10];
     char aprsPassCode[10];
     char aprsObjectNm[10];
-    char aprsTlmBits        = B00000000;  // Telemetry bits
-    int  aprsTlmSeq         = 999;        // Telemetry sequence mumber
-    bool error;
+    char aprsTlmBits        = B00000000;  ///< Telemetry status bits
+    int  aprsTlmSeq         = 999;        ///< Telemetry sequence number (0-999)
+    bool error;                          ///< Error flag for connection/packet issues
 
   private:
-    WiFiClient aprsClient;
-    char  aprsPkt[250];
-    char  aprsServer[50];             // CWOP APRS-IS server address to connect to
-    int   aprsPort;                   // CWOP APRS-IS port
-    char  aprsLocation[20];
-    char  aprsTable;
-    char  aprsSymbol;
-    char  DEVICEID[6];                // t_hing A_rduino E_SP8266 W_iFi 4_
+    WiFiClient aprsClient;               ///< TCP client for APRS-IS connection
+    char  aprsPkt[250];                  ///< Buffer for composing APRS packets
+    char  aprsServer[50];                ///< APRS-IS server address
+    int   aprsPort;                      ///< APRS-IS server port
+    char  aprsLocation[20];              ///< Formatted APRS coordinates
+    char  aprsTable;                     ///< APRS symbol table identifier
+    char  aprsSymbol;                    ///< APRS symbol code
+    char  DEVICEID[6];                   ///< Device identifier for weather reports
 };
 
 #endif /* APRS_H */
