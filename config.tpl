@@ -38,6 +38,7 @@
 #define NTP_SERVER    "europe.pool.ntp.org"
 
 // OTA
-#define OTA_PASS      "OTA_PASS"
+// IMPORTANT: Set a strong password (minimum 8 characters) for OTA updates
+// #define OTA_PASS      "YOUR_STRONG_PASSWORD_HERE"
 
 #endif /* CONFIG_H */

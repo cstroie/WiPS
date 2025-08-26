@@ -88,7 +88,11 @@ int MLS::geoLocation() {
   // Create the secure WiFi
   WiFiClientSecure geoClient;
   geoClient.setTimeout(5000);
-  geoClient.setInsecure();
+  // Only use setInsecure() if GEO_APIKEY is not properly configured
+  if (strcmp(GEO_APIKEY, "USE_YOUR_GOOGLE_KEY") == 0) {
+    geoClient.setInsecure();  // Warning: This is insecure!
+    Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection for geolocation"));
+  }
 
   // Try to connect
   if (geoClient.connect(geoServer, geoPort)) {

@@ -45,6 +45,7 @@ const char *wifiFS          = WIFI_FS;
 #include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
 int otaPort     = 8266;
+bool otaSecure  = false;  // Flag to indicate if OTA password is set
 
 // TCP server
 #include "server.h"
@@ -184,7 +185,11 @@ bool wifiCheckHTTP(char* server, int port, int timeout = 10000) {
   bool result = false;
   WiFiClientSecure testClient;
   testClient.setTimeout(timeout);
-  testClient.setInsecure();
+  // Only use insecure connection for testing
+  if (strcmp(GEO_SERVER, "www.googleapis.com") == 0 && 
+      strcmp(GEO_APIKEY, "USE_YOUR_GOOGLE_KEY") == 0) {
+    testClient.setInsecure();
+  }
   char buf[64] = "";
   if (testClient.connect(server, port)) {
     Serial.printf_P(PSTR("$PHTTP,CON,%s,%d\r\n"), server, port);
@@ -555,7 +560,10 @@ void setup() {
   ArduinoOTA.setPort(otaPort);
   ArduinoOTA.setHostname(NODENAME);
 #ifdef OTA_PASS
-  ArduinoOTA.setPassword((const char *)OTA_PASS);
+  if (strlen(OTA_PASS) >= 8) {  // Require minimum password length
+    ArduinoOTA.setPassword((const char *)OTA_PASS);
+    otaSecure = true;
+  }
 #endif
 
   ArduinoOTA.onStart([]() {
@@ -618,7 +626,12 @@ void setup() {
   Serial.print("\r\n");
 
   // Initialize the random number generator and set the APRS telemetry start sequence
-  randomSeed(ntp.getSeconds(false) + hwVcc + millis());
+  // Use a more secure seed
+  uint32_t secureSeed = (uint32_t)(ntp.getSeconds(false) + hwVcc + millis() + ESP.getChipId());
+  secureSeed ^= (secureSeed << 13);
+  secureSeed ^= (secureSeed >> 17);
+  secureSeed ^= (secureSeed << 5);
+  randomSeed(secureSeed);
   aprs.aprsTlmSeq = random(1000);
   Serial.printf_P(PSTR("$PHWMN,TLM,%d\r\n"), aprs.aprsTlmSeq);
 
