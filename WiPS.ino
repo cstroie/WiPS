@@ -36,7 +36,7 @@ bool PROBE = true;
 #include <WiFiManager.h>
 
 #ifdef WIFI_SSIDPASS
-static const char wifiSP[] PROGMEM = WIFI_SSIDPASS;
+const char wifiSP[] PROGMEM = WIFI_SSIDPASS;
 const char *wifiRS          = WIFI_RS;
 const char *wifiFS          = WIFI_FS;
 #endif
@@ -785,7 +785,7 @@ void loop() {
 #ifdef HAVE_OLED
         else {
           // Display the locator
-          u8x8.setCursor(0, 2); u8x8.print("Loc "); u8x8.print(mls.locator);
+          u8x8.setCursor(0, 2); u8x8.print("Loc "); u8x8.print((char*)mls.locator);
         }
 #endif
         Serial.print("\r\n");
