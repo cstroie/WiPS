@@ -48,7 +48,7 @@ class MLS {
   public:
     MLS();
     void  init();
-    int   wifiScan(bool sort = false);
+    int   wifiScan(bool sort);
     int   geoLocation();
     long  getMovement();
     float getDistance(float lat1, float long1, float lat2, float long2);
