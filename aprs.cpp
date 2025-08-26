@@ -321,6 +321,22 @@ void APRS::setLocation(float lat, float lng) {
 
   @param comment the comment to append
 */
+/**
+  Send APRS position report with optional altitude, course, speed and comment
+
+  Format: CALLSIGN>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$/A=000000 comment
+  For objects: CALLSIGN>APRS,TCPIP*:;OBJECT**DDMM.hhN/DDDMM.hhW$/A=000000 comment
+
+  @param utm Unix timestamp for object timestamp
+  @param lat Latitude in decimal degrees
+  @param lng Longitude in decimal degrees
+  @param cse Course in degrees (0-360), -1 to omit
+  @param spd Speed in knots, -1 to omit
+  @param alt Altitude in meters, -1 to omit
+  @param comment Optional comment string, NULL for default
+  @param object Optional object name, NULL for position report
+  @return true if packet sent successfully, false otherwise
+*/
 bool APRS::sendPosition(unsigned long utm, float lat, float lng, int cse, int spd, float alt, const char *comment, const char *object) {
   // Local buffer
   const int bufSize = 20;
@@ -354,7 +370,7 @@ bool APRS::sendPosition(unsigned long utm, float lat, float lng, int cse, int sp
   // Altitude
   if (alt >= 0) {
     strcat_P(aprsPkt, PSTR("/A="));
-    sprintf_P(buf, PSTR("%06d"), (long)(alt * 3.28084));
+    sprintf_P(buf, PSTR("%06ld"), (long)(alt * 3.28084));
     strncat(aprsPkt, buf, bufSize);
   }
   //strcat_P(aprsPkt, pstrSP);
@@ -372,23 +388,34 @@ bool APRS::sendPosition(unsigned long utm, float lat, float lng, int cse, int sp
 }
 
 /**
-  Send APRS object position and altitude
-  FW0690>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$/A=000000 comment
+  Send APRS object position report with optional altitude, course, speed and comment
 
-  @param comment the comment to append
+  Format: CALLSIGN>APRS,TCPIP*:;OBJECT**DDMM.hhN/DDDMM.hhW$/A=000000 comment
+
+  @param utm Unix timestamp for object timestamp
+  @param lat Latitude in decimal degrees
+  @param lng Longitude in decimal degrees
+  @param cse Course in degrees (0-360), -1 to omit
+  @param spd Speed in knots, -1 to omit
+  @param alt Altitude in meters, -1 to omit
+  @param comment Optional comment string, NULL for default
+  @return true if packet sent successfully, false otherwise
 */
 bool APRS::sendObjectPosition(unsigned long utm, float lat, float lng, int cse, int spd, float alt, const char *comment) {
   return sendPosition(utm, lat, lng, cse, spd, alt, comment, aprsObjectNm);
 }
 
 /**
-  Send APRS weather data, then try to get the forecast
-  FW0690>APRS,TCPIP*:@152457h4427.67N/02608.03E_.../...g...t044h86b10201L001WxSta
+  Send APRS weather data report
 
-  @param temp temperature in Fahrenheit
-  @param hmdt relative humidity in percents
-  @param pres athmospheric pressure (QNH) in dPa
-  @param srad solar radiation in W/m^2
+  Format: CALLSIGN>APRS,TCPIP*:@152457h4427.67N/02608.03E_.../...g...t044h86b10201L001WxSta
+
+  @param utm Unix timestamp
+  @param temp Temperature in degrees Celsius
+  @param hmdt Relative humidity percentage
+  @param pres Atmospheric pressure in hPa
+  @param srad Solar radiation in W/m²
+  @return true if packet sent successfully, false otherwise
 */
 bool APRS::sendWeather(unsigned long utm, int temp, int hmdt, int pres, int srad) {
   const int bufSize = 10;
@@ -439,15 +466,20 @@ bool APRS::sendWeather(unsigned long utm, int temp, int hmdt, int pres, int srad
 
 
 /**
-  Send APRS telemetry and, periodically, send the telemetry setup
-  FW0690>APRS,TCPIP*:T#517,173,062,213,002,000,00000000
+  Send APRS telemetry data packet with 5 parameters and 8-bit status field
 
-  @param vcc voltage
-  @param rssi wifi level
-  @param heap free memory
-  @param luxVis raw visible illuminance
-  @param luxIrd raw infrared illuminance
-  @bits digital inputs
+  Format: CALLSIGN>APRS,TCPIP*:T#517,173,062,213,002,000,00000000
+
+  Telemetry is automatically sent with sequence numbers 0-999.
+  When sequence number resets to 0, telemetry setup packets are sent.
+
+  @param p1 Parameter 1 value (e.g., voltage)
+  @param p2 Parameter 2 value (e.g., RSSI)
+  @param p3 Parameter 3 value (e.g., free heap)
+  @param p4 Parameter 4 value (e.g., accuracy)
+  @param p5 Parameter 5 value (e.g., speed)
+  @param bits 8-bit status flags
+  @return true if packet sent successfully, false otherwise
 */
 bool APRS::sendTelemetry(int p1, int p2, int p3, int p4, int p5, byte bits) {
   // Increment the telemetry sequence number, reset it if exceeds 999
