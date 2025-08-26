@@ -37,37 +37,127 @@ const int  geoPort            = GEO_PORT;
 const char geoPOST[] PROGMEM  = GEO_POST;
 const char eol[]     PROGMEM  = "\r\n";
 
+/**
+  Geolocation data structure
+  
+  Stores latitude, longitude, validity flag, and timestamp for a location fix.
+*/
 struct geo_t {
-  float         latitude;
-  float         longitude;
-  bool          valid;
-  unsigned long uptm;
+  float         latitude;   ///< Latitude in decimal degrees
+  float         longitude;  ///< Longitude in decimal degrees
+  bool          valid;      ///< Validity flag indicating successful geolocation
+  unsigned long uptm;       ///< Uptime timestamp when location was acquired
 };
 
+/**
+  Mozilla Location Services geolocation class
+  
+  Provides methods for WiFi scanning, geolocation, movement tracking,
+  and coordinate conversions.
+*/
 class MLS {
   public:
+    /**
+      Constructor - Initialize MLS object with default values
+    */
     MLS();
+    
+    /**
+      Initialize MLS - currently empty but reserved for future use
+    */
     void  init();
+    
+    /**
+      Scan for WiFi networks and collect BSSID/RSSI data
+      
+      @param sort Whether to sort networks by RSSI strength
+      @return Number of networks found and stored
+    */
     int   wifiScan(bool sort);
+    
+    /**
+      Perform geolocation using collected WiFi data
+      
+      Sends BSSID/RSSI data to geolocation service and parses response
+      to extract latitude, longitude, and accuracy.
+      
+      @return Accuracy in meters, or -1 on error
+    */
     int   geoLocation();
+    
+    /**
+      Calculate movement between current and previous locations
+      
+      Computes distance, speed, and bearing between locations.
+      Updates distance, speed, knots, and bearing member variables.
+      
+      @return Distance in meters, or -1 if locations invalid
+    */
     long  getMovement();
+    
+    /**
+      Calculate great-circle distance between two coordinates
+      
+      Uses haversine formula for spherical distance calculation.
+      
+      @param lat1 Latitude of first point in decimal degrees
+      @param long1 Longitude of first point in decimal degrees
+      @param lat2 Latitude of second point in decimal degrees
+      @param long2 Longitude of second point in decimal degrees
+      @return Distance in meters
+    */
     float getDistance(float lat1, float long1, float lat2, float long2);
+    
+    /**
+      Calculate initial bearing between two coordinates
+      
+      Computes forward azimuth using spherical trigonometry.
+      
+      @param lat1 Latitude of first point in decimal degrees
+      @param long1 Longitude of first point in decimal degrees
+      @param lat2 Latitude of second point in decimal degrees
+      @param long2 Longitude of second point in decimal degrees
+      @return Bearing in degrees (0-359)
+    */
     int   getBearing(float lat1, float long1, float lat2, float long2);
+    
+    /**
+      Convert bearing to cardinal direction abbreviation
+      
+      Maps bearing degrees to 16-point compass direction.
+      
+      @param course Bearing in degrees (0-359)
+      @return Pointer to cardinal direction string (N, NNE, NE, etc.)
+    */
     const char* getCardinal(int course);
+    
+    /**
+      Convert latitude/longitude to Maidenhead grid locator
+      
+      Calculates 6-character Maidenhead locator (e.g., "KN97bd").
+      
+      @param lat Latitude in decimal degrees
+      @param lng Longitude in decimal degrees
+    */
     void  getLocator(float lat, float lng);
-    geo_t current;
-    geo_t previous;
-    float distance;
-    float speed;
-    int   knots;
-    int   bearing;
-    char  locator[7];
+    
+    geo_t current;    ///< Current location data
+    geo_t previous;   ///< Previous location data
+    char  locator[7]; ///< Maidenhead locator (6 chars + null terminator)
+    int   distance;   ///< Distance traveled since last location (meters)
+    float speed;      ///< Speed in meters/second
+    int   knots;      ///< Speed in knots (rounded)
+    int   bearing;    ///< Bearing in degrees from previous location
+    int   netCount;   ///< Number of WiFi networks found in last scan
+
   private:
-    struct  BSSID_RSSI {
-      uint8_t bssid[WL_MAC_ADDR_LENGTH];
-      int8_t  rssi;
-    } nets[MAXNETS];
-    int           netCount;
+    /**
+      Internal structure for storing WiFi network data
+    */
+    struct BSSID_RSSI {
+      uint8_t bssid[WL_MAC_ADDR_LENGTH];  ///< MAC address of access point
+      int8_t  rssi;                       ///< Signal strength in dBm
+    } nets[MAXNETS];  ///< Array of network data
 };
 
 #endif /* MLS_H */
