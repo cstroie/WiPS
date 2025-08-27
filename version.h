@@ -1,7 +1,10 @@
 /**
-  version.h
+  version.h - Software version and device identification constants
+         
+  This header file defines the software version and device identification
+  constants used throughout the WiPS project.
 
-  Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2025 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,9 +25,9 @@
 
 #include "Arduino.h"
 
-// Device specific constants
-const char NODENAME[] = "WiPS";
-const char nodename[] = "wips";
-const char VERSION[]  = "0.3.20";
+// Device identification constants
+const char NODENAME[] = "WiPS";     ///< Device name for network services
+const char nodename[] = "wips";     ///< Lowercase device name
+const char VERSION[]  = "0.3.20";   ///< Software version string
 
 #endif /* VERSION_H */
