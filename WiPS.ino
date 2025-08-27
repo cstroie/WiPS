@@ -10,6 +10,15 @@
   - Over-The-Air (OTA) firmware updates
   - Network Time Protocol (NTP) synchronization
 
+  Main operational flow:
+  1. Connect to WiFi using multiple fallback methods
+  2. Synchronize time with NTP server
+  3. Continuously scan for WiFi networks and perform geolocation
+  4. Calculate movement, speed, and bearing between locations
+  5. Generate NMEA sentences for GPS compatibility
+  6. Send APRS position reports with telemetry data when moving or on schedule
+  7. Implement SmartBeaconing algorithm for adaptive reporting intervals
+
   Copyright (c) 2017-2025 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
@@ -26,7 +35,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// True if the tracker is being probed
+// True if the tracker is being probed (used for telemetry bit setting)
 bool PROBE = true;
 
 // Led
@@ -98,25 +107,32 @@ U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(16);
 // Set ADC to Voltage
 ADC_MODE(ADC_VCC);
 
-// Timings
-unsigned long geoNextTime = 0;    // Next time to geolocate
-unsigned long geoDelay    = 20;   // Delay between geolocating
-unsigned long rpNextTime  = 0;    // Next time to report
-unsigned long rpDelay     = 60;   // Delay between reporting
-unsigned long rpDelayStep = 30;   // Step to increase the delay between reporting
-unsigned long rpDelayMin  = 60;   // Minimum delay between reporting
-unsigned long rpDelayMax  = 1800; // Maximum delay between reporting
-unsigned long nmeaNextTime = 0;   // Next time to send NMEA sentences
+// Timings for geolocation and reporting cycles
+unsigned long geoNextTime = 0;    ///< Next time to perform geolocation
+unsigned long geoDelay    = 20;   ///< Delay between geolocation attempts (seconds)
+unsigned long rpNextTime  = 0;    ///< Next time to send APRS report
+unsigned long rpDelay     = 60;   ///< Current delay between APRS reports (seconds)
+unsigned long rpDelayStep = 30;   ///< Step to increase delay when stationary (seconds)
+unsigned long rpDelayMin  = 60;   ///< Minimum delay between APRS reports (seconds)
+unsigned long rpDelayMax  = 1800; ///< Maximum delay between APRS reports (seconds)
+unsigned long nmeaNextTime = 0;   ///< Next time to send NMEA sentences
 
-// Smooth accuracy and course
-int sAcc = -1;
-int sCrs = -1;
+// Exponentially smoothed values for better data quality
+int sAcc = -1;  ///< Smoothed accuracy value
+int sCrs = -1;  ///< Smoothed course/bearing value
 
 
 /**
   Convert IPAddress to char array
+  
+  Formats an IP address as a string with optional padding for display alignment.
+  
+  @param ip IP address to convert
+  @param buf Buffer to store the formatted IP string
+  @param len Buffer length
+  @param pad Whether to pad each octet to 3 characters (default false)
 */
-char charIP(const IPAddress ip, char *buf, size_t len, boolean pad = false) {
+void charIP(const IPAddress ip, char *buf, size_t len, boolean pad = false) {
   if (pad) snprintf_P(buf, len, PSTR("%3d.%3d.%3d.%3d"), ip[0], ip[1], ip[2], ip[3]);
   else     snprintf_P(buf, len, PSTR("%d.%d.%d.%d"),     ip[0], ip[1], ip[2], ip[3]);
 }
@@ -157,10 +173,17 @@ void showWiFi() {
 }
 
 /**
-  Turn the built-in led on, analog
+  Control the built-in LED with PWM for status indication
+  
+  Uses PWM to control LED brightness for different status levels.
+  Higher load values produce brighter LED output.
+  
+  @param load LED brightness level (0-10, where 0 is off, 10 is brightest)
 */
 void setLED(int load) {
+  // Calculate PWM level (0-1023) based on load
   int level = (1 << load) - 1;
+  // Set LED brightness (inverted because LED is active low on ESP8266)
   analogWrite(LED, PWMRANGE - level);
 }
 
@@ -185,12 +208,15 @@ bool tryWPSPBC() {
 }
 
 /**
-  Test HTTPS server connectivity
-
+  Test HTTPS server connectivity to verify internet access
+  
+  Attempts to establish a secure HTTPS connection to the specified server
+  and sends a HEAD request to verify server availability.
+  
   @param server Server hostname to test
   @param port Server port to connect to
   @param timeout Connection timeout in milliseconds
-  @return true if connection successful, false otherwise
+  @return true if connection and request successful, false otherwise
 */
 bool wifiCheckHTTP(char* server, int port, int timeout = 10000) {
   bool result = false;
@@ -209,7 +235,7 @@ bool wifiCheckHTTP(char* server, int port, int timeout = 10000) {
   char buf[64] = "";
   if (testClient.connect(server, port)) {
     Serial.printf_P(PSTR("$PHTTP,CON,%s,%d\r\n"), server, port);
-    // Send a request
+    // Send a simple HEAD request to test server availability
     testClient.print("HEAD / HTTP/1.1\r\n");
     testClient.print("Host: "); testClient.print(server); testClient.print("\r\n");
     testClient.print("Connection: close\r\n\r\n");
@@ -225,7 +251,7 @@ bool wifiCheckHTTP(char* server, int port, int timeout = 10000) {
   }
   else
     Serial.printf_P(PSTR("$PHTTP,ERR,%s,%d\r\n"), server, port);
-  // Stop the test
+  // Stop the test connection
   testClient.stop();
   // Return the result
   return result;
@@ -476,45 +502,50 @@ void wifiCallback(WiFiManager * wifiMgr) {
   4. Open networks
   5. WiFi Manager captive portal
 
+  Implements a comprehensive connection strategy with multiple fallbacks
+  to ensure device can connect to WiFi in various environments.
+
   @param timeout WiFi Manager timeout in seconds
   @return true if connection successful, false otherwise
 */
 bool wifiConnect(int timeout = 300) {
-  // Set the host name
+  // Set the host name for network identification
   WiFi.hostname(NODENAME);
-  // Set the mode
+  // Set WiFi mode to station only
   WiFi.mode(WIFI_STA);
-  // Do not try to auto-connect on power on
+  // Disable auto-connect to prevent conflicts with our connection logic
   //WiFi.setAutoConnect(false);
-  // Led ON
+  // Turn on LED to indicate connection attempt
   setLED(1);
 
   // Keep the connection result
   bool result = true;
-  // Try to connect to WiFi
+  // Try to connect to WiFi using various methods
 #ifdef WIFI_SSID
+  // Use pre-configured credentials if defined
   wifiTryConnect(WIFI_SSID, WIFI_PASS);
 #else
-  // Check if already connected, then try to connect to the last known AP
+  // Check if already connected, then try multiple fallback methods
   if (!WiFi.isConnected()) {
-    // Keep the saved credentials
+    // Keep the saved credentials for reference
     char savedSSID[WL_SSID_MAX_LENGTH];
     char savedPSK[WL_WPA_KEY_MAX_LENGTH];
     strncpy(savedSSID, WiFi.SSID().c_str(), WL_SSID_MAX_LENGTH);
     strncpy(savedPSK, WiFi.psk().c_str(), WL_WPA_KEY_MAX_LENGTH);
-    // Try to connect with saved credentials
+    // Try connection methods in order of preference:
+    // 1. Saved credentials
     if (not wifiTryConnect()) {
-      // Try the known networks
+      // 2. Known networks from configuration
       if (not wifiTryKnownNetworks()) {
-        // Try the open networks
+        // 3. Open networks
         if (not wifiTryOpenNetworks()) {
-          // Use the WiFi Manager
+          // 4. WiFi Manager captive portal as last resort
           WiFiManager wifiManager;
           wifiManager.setTimeout(timeout);
           wifiManager.setAPCallback(wifiCallback);
-          setLED(10);
+          setLED(10);  // Bright LED to indicate captive portal mode
           if (not wifiManager.startConfigPortal(NODENAME)) {
-            setLED(2);
+            setLED(2);  // Dim LED to indicate failure
             result = false;
           }
         }
@@ -522,22 +553,27 @@ bool wifiConnect(int timeout = 300) {
     }
   }
 #endif
-  // Led OFF
+  // Turn off LED when connection process completes
   setLED(0);
 
   return result;
 }
 
 /**
-  UDP broadcast
+  Broadcast data via UDP to the local network
+  
+  Sends NMEA sentences and other data to all devices on the local network
+  using UDP broadcast. Calculates the broadcast address based on the
+  subnet mask and gateway IP.
+  
+  @param buf Data buffer to broadcast
+  @param len Length of data to broadcast
 */
 void broadcast(char *buf, size_t len) {
-  // Find the broadcast IP
+  // Calculate broadcast IP: invert subnet mask and OR with gateway IP
   bcastIP = IPAddress((~ (uint32_t)WiFi.subnetMask()) | ((uint32_t)WiFi.gatewayIP()));
 
-  //Serial.printf_P(PSTR("$PBCST,%u,%d.%d.%d.%d\r\n"),
-  //                bcastPort, bcastIP[0], bcastIP[1], bcastIP[2], bcastIP[3]);
-  // Send the packet
+  // Send the UDP packet
   bcastUDP.beginPacket(bcastIP, bcastPort);
   bcastUDP.write(buf, len);
   bcastUDP.endPacket();
@@ -660,12 +696,14 @@ void setup() {
   Serial.print("\r\n");
 
   // Initialize the random number generator and set the APRS telemetry start sequence
-  // Use a more secure seed
+  // Use a more secure seed combining multiple entropy sources
   uint32_t secureSeed = (uint32_t)(ntp.getSeconds(false) + hwVcc + millis() + ESP.getChipId());
+  // Apply bit mixing to improve randomness
   secureSeed ^= (secureSeed << 13);
   secureSeed ^= (secureSeed >> 17);
   secureSeed ^= (secureSeed << 5);
   randomSeed(secureSeed);
+  // Set initial telemetry sequence number to random value to avoid conflicts
   aprs.aprsTlmSeq = random(1000);
   Serial.printf_P(PSTR("$PHWMN,TLM,%d\r\n"), aprs.aprsTlmSeq);
 
@@ -674,82 +712,98 @@ void setup() {
 }
 
 /**
-  Main Arduino loop
+  Main Arduino loop - Implements the core operational logic
+  
+  This function implements the main operational cycle:
+  1. Handle OTA updates
+  2. Manage NMEA TCP clients
+  3. Send NMEA sentences every second
+  4. Perform geolocation at regular intervals
+  5. Send APRS reports based on movement and SmartBeaconing algorithm
+  6. Update telemetry data and status indicators
+  
+  The loop implements a state machine that balances:
+  - Frequent position updates for accuracy
+  - Adaptive reporting intervals (SmartBeaconing)
+  - Resource conservation during stationary periods
+  - Robust error handling and recovery
 */
 void loop() {
-  // Handle OTA
+  // Handle OTA firmware updates
   ArduinoOTA.handle();
   yield();
 
-  // Handle NMEA clients
+  // Handle NMEA TCP client connections
   nmeaServer.check();
 
-  // Uptime
+  // Get current uptime in seconds
   unsigned long now = millis() / 1000;
 
-  // Send NMEA sentences every second
+  // Send NMEA sentences every second for GPS compatibility
   if (now >= nmeaNextTime) {
-    // Get current time
+    // Get current time from NTP
     unsigned long utm = ntp.getSeconds();
     
-    // Send NMEA sentences even if location hasn't changed
+    // Send NMEA sentences to all outputs (serial, TCP, UDP)
     sendNMEASentences(utm, false);
     
-    // Schedule next NMEA output
+    // Schedule next NMEA output for 1 second later
     nmeaNextTime = now + 1;
   }
 
-  // Check if we should geolocate
+  // Perform geolocation when it's time
   if (now >= geoNextTime) {
-    // Make sure we are connected, shorter timeout
+    // Ensure WiFi connectivity with shorter timeout
     if (!WiFi.isConnected()) wifiConnect(60);
 
-    // Set the telemetry bit 7 if the tracker is being probed
+    // Set APRS telemetry status bits for current conditions
+    // Bit 7: Tracker probe status
     if (PROBE) aprs.aprsTlmBits = B10000000;
     else       aprs.aprsTlmBits = B00000000;
-
-    // Check the time and set the telemetry bit 0 if time is not accurate
+    // Bit 0: Time accuracy (set if NTP time is invalid)
     if (!ntp.valid) aprs.aprsTlmBits |= B00000001;
-    // Set the telemetry bit 1 if the uptime is less than one day (recent reboot)
+    // Bit 1: Recent reboot (set if uptime < 1 day)
     if (millis() < 86400000UL) aprs.aprsTlmBits |= B00000010;
 
-    // Led on
+    // Turn on LED to indicate geolocation in progress
     setLED(4);
 
-    // Get the time of the fix
+    // Get the time of the geolocation attempt
     unsigned long utm = ntp.getSeconds();
 
-    // Scan the WiFi access points
+    // Scan for nearby WiFi access points
     Serial.print(F("$PSCAN,WIFI,"));
     int found = mls.wifiScan(false);
 
-    // Get the coordinates
+    // Process geolocation if WiFi networks were found
     if (found > 0) {
-      // Led on
+      // Increase LED brightness during geolocation
       setLED(6);
       Serial.print(found);
       Serial.print(","); Serial.print(ntp.getSeconds() - utm);
       Serial.print("s\r\n");
 
-      // Geolocate
+      // Perform geolocation using WiFi data
       int acc = mls.geoLocation();
-      // Led off
+      // Return LED to normal brightness
       setLED(4);
 
-      // Exponential smooth the accuracy
-      if (sAcc < 0) sAcc = acc;
-      else          sAcc = (((sAcc << 2) - sAcc + acc) + 2) >> 2;
+      // Exponentially smooth the accuracy for better data quality
+      // This applies a 75% smoothing factor to reduce jitter
+      if (sAcc < 0) sAcc = acc;  // Initialize on first reading
+      else          sAcc = (((sAcc << 2) - sAcc + acc) + 2) >> 2;  // Smoothed average
 
 #ifdef HAVE_OLED
-      // Display
+      // Update OLED display with current time
       u8x8.clear();
       char bufClock[20];
       ntp.getClock(bufClock, sizeof(bufClock), utm);
       u8x8.setCursor(0, 3); u8x8.print("UTC "); u8x8.print(bufClock);
 #endif
 
+      // Process location data if geolocation was successful
       if (mls.current.valid) {
-        // Report
+        // Report successful geolocation
         Serial.print(F("$PSCAN,FIX,"));
         Serial.print(mls.current.latitude, 6);  Serial.print(",");
         Serial.print(mls.current.longitude, 6); Serial.print(",");
@@ -757,7 +811,7 @@ void loop() {
         Serial.print(acc);                      Serial.print("m,");
         Serial.print(ntp.getSeconds() - utm);   Serial.print("s");
 #ifdef HAVE_OLED
-        // Display
+        // Update OLED display with location information
         u8x8.print(" FIX");
         u8x8.setCursor(0, 0);
         u8x8.print("Lat ");
@@ -770,132 +824,146 @@ void loop() {
         u8x8.print(fabs(mls.current.longitude), 6);
 #endif
 
-        // Check if moving
-        bool moving = mls.getMovement() >= (sAcc >> 2);
+        // Check if the device is moving by comparing distance to accuracy threshold
+        bool moving = mls.getMovement() >= (sAcc >> 2);  // Movement threshold = 25% of accuracy
         if (moving) {
-          // Exponential smooth the bearing (75%)
-          if (sCrs < 0) sCrs = mls.bearing;
-          else          sCrs = ((sCrs + (mls.bearing << 2) - mls.bearing) + 2) >> 2;
-          // Report
+          // Exponentially smooth the bearing for better directional data
+          // This applies a 75% smoothing factor to reduce bearing jitter
+          if (sCrs < 0) sCrs = mls.bearing;  // Initialize on first reading
+          else          sCrs = ((sCrs + (mls.bearing << 2) - mls.bearing) + 2) >> 2;  // Smoothed average
+          // Report movement data
           Serial.print(",");
           Serial.print(mls.distance, 2);  Serial.print("m,");
           Serial.print(mls.speed, 2);     Serial.print("m/s,");
           Serial.print(mls.bearing);      Serial.print("'");
 #ifdef HAVE_OLED
-          // Display
+          // Update OLED display with movement information
           u8x8.setCursor(0, 2); u8x8.print("Spd "); u8x8.print(mls.speed, 2);
           u8x8.setCursor(9, 2); u8x8.print("Crs "); u8x8.print(sCrs);
 #endif
         }
 #ifdef HAVE_OLED
         else {
-          // Display the locator
+          // Display the locator when stationary
           u8x8.setCursor(0, 2); u8x8.print("Loc "); u8x8.print((char*)mls.locator);
         }
 #endif
         Serial.print("\r\n");
 
-        // Compose and send the NMEA sentences
+        // Send updated NMEA sentences with current location
         sendNMEASentences(utm, true);
 
-        // Read the Vcc (mV)
-        int vcc  = ESP.getVcc();
-        // Set the bit 3 to show whether the battery is wrong (3.3V +/- 10%)
-        if (vcc < 3000 or vcc > 3600) aprs.aprsTlmBits |= B00001000;
-        // Get RSSI
-        int rssi = WiFi.RSSI();
-        // Get free heap
-        int heap = ESP.getFreeHeap();
+        // Collect system telemetry data
+        int vcc  = ESP.getVcc();    // Battery voltage in mV
+        int rssi = WiFi.RSSI();     // WiFi signal strength in dBm
+        int heap = ESP.getFreeHeap(); // Free memory in bytes
 
-        // APRS if moving or time expired
+        // Set telemetry bit 3 if battery voltage is outside normal range (3.3V ±10%)
+        if (vcc < 3000 or vcc > 3600) aprs.aprsTlmBits |= B00001000;
+        
+        // Send APRS report if moving or scheduled reporting time has arrived
         if ((moving or (now >= rpNextTime)) and acc >= 0) {
-          // Led ON
+          // Turn on LED to indicate APRS transmission
           setLED(8);
 
-          // Connect to the server
+          // Connect to APRS-IS server and send position report
           if (aprs.connect()) {
-            // Authenticate
+            // Authenticate with APRS-IS server
             if (aprs.authenticate()) {
-              // Local buffer, max comment length is 43 bytes
+              // Local buffer for APRS comment (max 43 bytes)
               char buf[45] = "";
-              // Prepare the comment
+              // Prepare the comment with telemetry data
               snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Crs:%s Vcc:%d.%d RSSI:%d"),
                          acc, (int)(mls.distance), (int)(3.6 * mls.speed), mls.getCardinal(sCrs),
                          vcc / 1000, (vcc % 1000) / 100, rssi);
-              // Report course and speed
+              // Send position report with course, speed, and comment
               aprs.sendPosition(utm, mls.current.latitude, mls.current.longitude, sCrs, mls.knots, acc, buf);
-              // Send the telemetry
-              //   mls.speed / 0.0008 = mls.speed * 1250
+              // Send telemetry data with system metrics
+              // Speed conversion: mls.speed / 0.0008 = mls.speed * 1250
               aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed * 1250)), aprs.aprsTlmBits);
-              // Send the status
-              //snprintf_P(buf, sizeof(buf), PSTR("%s/%s, Vcc: %d.%3dV, RSSI: %ddBm"),
-              //           NODENAME, VERSION, vcc / 1000, vcc % 1000, rssi);
-              //aprs.sendStatus(buf);
-              // Adjust the delay (aka SmartBeaconing)
+              
+              // Adjust reporting delay using SmartBeaconing algorithm
               if (moving) {
-                // Reset the delay to minimum
+                // Reset delay to minimum when moving for frequent updates
                 rpDelay = rpDelayMin;
-                // Set the telemetry bits 4 and 5 if moving, according to the speed
-                if (mls.speed > 10) aprs.aprsTlmBits |= B00100000;
-                else                aprs.aprsTlmBits |= B00010000;
+                // Set telemetry bits 4 and 5 based on speed for status indication
+                if (mls.speed > 10) aprs.aprsTlmBits |= B00100000;  // High speed
+                else                aprs.aprsTlmBits |= B00010000;  // Low speed
               }
               else {
-                // Not moving, increase the delay up to a maximum
+                // Increase delay when stationary to conserve bandwidth and battery
                 rpDelay += rpDelayStep;
-                if (rpDelay > rpDelayMax) rpDelay = rpDelayMax;
+                if (rpDelay > rpDelayMax) rpDelay = rpDelayMax;  // Cap at maximum delay
               }
             }
-            // Close the connection
+            // Close APRS-IS connection
             aprs.stop();
           }
 
-          // On error, reset the delay to the minimum
+          // Handle APRS transmission errors by resetting to minimum delay
           if (aprs.error) {
             rpDelay = rpDelayMin;
             aprs.error = false;
           }
 
-          // Repeat the report after the delay
+          // Schedule next APRS report based on current delay setting
           rpNextTime = now + rpDelay;
 
-          // Led OFF
+          // Turn off LED after APRS transmission
           setLED(0);
         }
       }
       else {
+        // Report failed geolocation attempt
         Serial.printf_P(PSTR("$PSCAN,NOFIX,%dm,%ds\r\n"), acc, ntp.getSeconds() - utm);
 #ifdef HAVE_OLED
         u8x8.print(" NFX");
 #endif
       }
-      // Repeat the geolocation after a delay
+      // Schedule next geolocation attempt
       geoNextTime = now + geoDelay;
     }
     else {
-      // No WiFi networks
+      // No WiFi networks found - report and retry immediately
       Serial.print(F("0"));
       Serial.print(",");
       Serial.print(ntp.getSeconds() - utm);
       Serial.print("s\r\n");
-      // Repeat the geolocation now
+      // Retry geolocation immediately
       geoNextTime = now;
     }
 
-    // Led off
+    // Turn off LED when geolocation cycle completes
     setLED(0);
   };
 }
-// Send NMEA sentences to all outputs
+
+/**
+  Send NMEA sentences to all configured outputs
+  
+  Generates and broadcasts NMEA-0183 sentences to:
+  - Serial port for direct connection
+  - TCP NMEA server for network clients
+  - UDP broadcast for local network devices
+  
+  Implements conditional sentence generation based on:
+  - Location validity
+  - Movement status
+  - Configuration flags
+  
+  @param utm Unix timestamp for time reference
+  @param useCurrentLocation Whether to use current location data (not used in current implementation)
+*/
 void sendNMEASentences(unsigned long utm, bool useCurrentLocation) {
   char bufServer[200];
   int lenServer;
   
-  // Use current location or last known location
+  // Determine location data to use
   float lat = 0.0;
   float lng = 0.0;
   int found = 0;
   
-  // If we have a valid location, use it regardless of useCurrentLocation flag
+  // Use current valid location if available
   if (mls.current.valid) {
     lat = mls.current.latitude;
     lng = mls.current.longitude;
@@ -903,35 +971,35 @@ void sendNMEASentences(unsigned long utm, bool useCurrentLocation) {
   }
   // If no valid location, use default values (0.0, 0.0) and found = 0
   
-  // GGA
+  // Generate and send GGA sentence (GPS fix data)
   if (nmeaReport.gga) {
     lenServer = nmea.getGGA(bufServer, sizeof(bufServer), utm, lat, lng, found, found);
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
-  // RMC - only send if we have a valid location
+  // Generate and send RMC sentence (recommended minimum data) - only if valid location
   if (nmeaReport.rmc && found) {
     lenServer = nmea.getRMC(bufServer, sizeof(bufServer), utm, lat, lng, mls.knots, sCrs);
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
-  // GLL - only send if we have a valid location
+  // Generate and send GLL sentence (geographic position) - only if valid location
   if (nmeaReport.gll && found) {
     lenServer = nmea.getGLL(bufServer, sizeof(bufServer), utm, lat, lng);
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
-  // VTG - only send if we have a valid location and are moving
+  // Generate and send VTG sentence (track made good) - only if valid location and moving
   if (nmeaReport.vtg && found && mls.knots > 0) {
     lenServer = nmea.getVTG(bufServer, sizeof(bufServer), sCrs, mls.knots, (int)(mls.speed * 3.6));
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
   }
-  // ZDA - always send as it only requires time
+  // Generate and send ZDA sentence (time and date) - always sent as it only requires time
   if (nmeaReport.zda) {
     lenServer = nmea.getZDA(bufServer, sizeof(bufServer), utm);
     Serial.print(bufServer);
