@@ -48,4 +48,11 @@
 // Uncomment the line below and set your password
 //#define OTA_PASS      "YOUR_STRONG_PASSWORD_HERE"
 
+// ESP32 Specific Configuration
+#ifdef ESP32
+  // Uncomment to enable ESP32 specific features
+  //#define ESP32_BLE_SCANNER  // Enable BLE scanning for additional location sources
+  //#define ESP32_WIFI_POWER_MANAGEMENT  // Enable WiFi power management
+#endif
+
 #endif /* CONFIG_H */

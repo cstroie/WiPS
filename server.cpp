@@ -20,9 +20,15 @@
 #include <Arduino.h>
 #include "server.h"
 
+#ifdef ESP32
+TCPServer::TCPServer(uint16_t serverPort) : WiFiServer() {
+  port = serverPort;
+}
+#else
 TCPServer::TCPServer(uint16_t serverPort) : WiFiServer(serverPort) {
   port = serverPort;
 }
+#endif
 
 /**
   Initialize the server
@@ -37,11 +43,16 @@ void TCPServer::init(const char *serverName, const char *welcome) {
   strncpy(wlcm, welcome, sizeof(wlcm));
   wlcm[sizeof(wlcm) - 1] = '\0';
   // Configure mDNS
+#ifdef ESP32
+  MDNS.begin(name);
+#else
+  MDNS.begin(name);
+#endif
   MDNS.addService((const char*)name, "tcp", (int)port);
   Serial.printf_P(PSTR("$PMDNS,%s,%u,TCP,%u\r\n"),
                   name, MAX_CLIENTS, port);
   // Start the TCP server
-  begin();
+  begin(port);
   setNoDelay(true);
 }
 

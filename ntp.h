@@ -32,7 +32,13 @@
 #define NTP_H
 
 #include "Arduino.h"
-#include <WiFiUdp.h>
+#ifdef ESP32
+  #include <WiFi.h>
+  #include <WiFiUdp.h>
+#else
+  #include <ESP8266WiFi.h>
+  #include <WiFiUdp.h>
+#endif
 
 /**
   Date and time structure for breaking down Unix timestamps

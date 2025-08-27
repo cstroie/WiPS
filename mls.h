@@ -41,18 +41,31 @@
 #define MAXNETS 32
 
 #include "Arduino.h"
-#include <ESP8266WiFi.h>
+#ifdef ESP32
+  #include <WiFi.h>
+  #include <HTTPClient.h>
+#else
+  #include <ESP8266WiFi.h>
+#endif
 #include <WiFiClientSecure.h>
 #include "config.h"
 
 // Define GeoLocation server
 #define GEO_SERVER    "www.googleapis.com"
 #define GEO_PORT      443
-#define GEO_POST      "POST /geolocation/v1/geolocate?key=" GEO_APIKEY " HTTP/1.1"
+#ifdef ESP32
+  #define GEO_POST      "POST /geolocation/v1/geolocate?key=" GEO_APIKEY " HTTP/1.1"
+#else
+  #define GEO_POST      "POST /geolocation/v1/geolocate?key=" GEO_APIKEY " HTTP/1.1"
+#endif
 
 const char geoServer[]        = GEO_SERVER;
 const int  geoPort            = GEO_PORT;
-const char geoPOST[] PROGMEM  = GEO_POST;
+#ifdef ESP32
+  const char geoPOST[] = GEO_POST;
+#else
+  const char geoPOST[] PROGMEM  = GEO_POST;
+#endif
 const char eol[]     PROGMEM  = "\r\n";
 
 /**

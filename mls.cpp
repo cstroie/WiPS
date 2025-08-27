@@ -23,6 +23,7 @@
 
 #include "Arduino.h"
 #include "mls.h"
+#include "platform.h"
 
 MLS::MLS() {
 }
@@ -133,36 +134,80 @@ int MLS::geoLocation() {
     // Local buffer for HTTP request construction
     const int bufSize = 250;
     char buf[bufSize] = "";
-    
+  
     // Record the current time for location timestamp
     unsigned long now = millis();
 
-    // Send HTTP request headers
+  #ifdef ESP32
+    // Send HTTP request headers for ESP32
+    // Request line
+    strcpy(buf, geoPOST);
+    strcat(buf, eol);
+    geoClient.print(buf);
+    yield();
+  
+    // Host header
+    strcpy(buf, "Host: ");
+    strcat(buf, geoServer);
+    strcat(buf, eol);
+    geoClient.print(buf);
+    yield();
+  
+    // User agent header
+    strcpy(buf, "User-Agent: Arduino-MLS/0.1");
+    strcat(buf, eol);
+    geoClient.print(buf);
+    yield();
+  
+    // Content type header
+    strcpy(buf, "Content-Type: application/json");
+    strcat(buf, eol);
+    geoClient.print(buf);
+    yield();
+  
+    // Content length header: each network entry is ~60 chars, plus 24 for JSON structure
+    const int sbufSize = 8;
+    char sbuf[sbufSize] = "";
+    strcpy(buf, "Content-Length: ");
+    itoa(24 + 60 * netCount, sbuf, 10);
+    strncat(buf, sbuf, sbufSize);
+    strcat(buf, eol);
+    geoClient.print(buf);
+    yield();
+  
+    // Connection header
+    strcpy(buf, "Connection: close");
+    strcat(buf, eol);
+    strcat(buf, eol);
+    geoClient.print(buf);
+    yield();
+  #else
+    // Send HTTP request headers for ESP8266
     // Request line
     strcpy_P(buf, geoPOST);
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();
-    
+  
     // Host header
     strcpy_P(buf, PSTR("Host: "));
     strcat(buf, geoServer);
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();
-    
+  
     // User agent header
     strcpy_P(buf, PSTR("User-Agent: Arduino-MLS/0.1"));
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();
-    
+  
     // Content type header
     strcpy_P(buf, PSTR("Content-Type: application/json"));
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();
-    
+  
     // Content length header: each network entry is ~60 chars, plus 24 for JSON structure
     const int sbufSize = 8;
     char sbuf[sbufSize] = "";
@@ -172,13 +217,14 @@ int MLS::geoLocation() {
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();
-    
+  
     // Connection header
     strcpy_P(buf, PSTR("Connection: close"));
     strcat_P(buf, eol);
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();
+  #endif
 
     // Send JSON payload with WiFi access point data
     // Start of JSON object

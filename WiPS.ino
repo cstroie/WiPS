@@ -39,27 +39,48 @@
 bool PROBE = true;
 
 // Led
-#define LED 2
+#ifdef ESP32
+  #define LED 2  // ESP32 default LED pin
+#else
+  #define LED 2  // ESP8266 default LED pin
+#endif
 
 // User settings
 #include "config.h"
+
+// Platform compatibility
+#include "platform.h"
 
 // Software version
 #include "version.h"
 
 // WiFi
-#include <ESP8266WiFi.h>
-#include <WiFiUdp.h>
-#include <WiFiManager.h>
+#ifdef ESP32
+  #include <WiFi.h>
+  #include <WiFiUdp.h>
+  #include <WiFiManager.h>
+#else
+  #include <ESP8266WiFi.h>
+  #include <WiFiUdp.h>
+  #include <WiFiManager.h>
+#endif
 
 #ifdef WIFI_SSIDPASS
+#ifdef ESP32
+const char wifiSP[] = WIFI_SSIDPASS;
+#else
 const char wifiSP[] PROGMEM = WIFI_SSIDPASS;
+#endif
 const char *wifiRS          = WIFI_RS;
 const char *wifiFS          = WIFI_FS;
 #endif
 
 // OTA
-#include <ESP8266mDNS.h>
+#ifdef ESP32
+  #include <ESPmDNS.h>
+#else
+  #include <ESP8266mDNS.h>
+#endif
 #include <ArduinoOTA.h>
 int otaPort     = 8266;
 bool otaSecure  = false;  // Flag to indicate if OTA password is set
@@ -101,11 +122,17 @@ nmeaReports nmeaReport = {1, 1, 0, 0, 0};
 #ifdef HAVE_OLED
 // OLED
 #include <U8x8lib.h>
-U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(16);
+#ifdef ESP32
+U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(/* clock=*/ 16, /* data=*/ 17, /* reset=*/ U8X8_PIN_NONE);
+#else
+U8X8_SSD128X32_UNIVISION_HW_I2C u8x8(16);
+#endif
 #endif
 
 // Set ADC to Voltage
-ADC_MODE(ADC_VCC);
+#ifdef ESP8266
+  ADC_MODE(ADC_VCC);
+#endif
 
 // Timings for geolocation and reporting cycles
 unsigned long geoNextTime = 0;    ///< Next time to perform geolocation
@@ -133,8 +160,13 @@ int sCrs = -1;  ///< Smoothed course/bearing value
   @param pad Whether to pad each octet to 3 characters (default false)
 */
 void charIP(const IPAddress ip, char *buf, size_t len, boolean pad = false) {
+#ifdef ESP32
+  if (pad) snprintf(buf, len, "%3d.%3d.%3d.%3d", ip[0], ip[1], ip[2], ip[3]);
+  else     snprintf(buf, len, "%d.%d.%d.%d",     ip[0], ip[1], ip[2], ip[3]);
+#else
   if (pad) snprintf_P(buf, len, PSTR("%3d.%3d.%3d.%3d"), ip[0], ip[1], ip[2], ip[3]);
   else     snprintf_P(buf, len, PSTR("%d.%d.%d.%d"),     ip[0], ip[1], ip[2], ip[3]);
+#endif
 }
 
 /**
@@ -183,8 +215,13 @@ void showWiFi() {
 void setLED(int load) {
   // Calculate PWM level (0-1023) based on load
   int level = (1 << load) - 1;
+#ifdef ESP32
+  // Set LED brightness (ESP32 uses 0-255 for analogWrite)
+  analogWrite(LED, 255 - (level >> 2));  // Scale down to 0-255 range
+#else
   // Set LED brightness (inverted because LED is active low on ESP8266)
   analogWrite(LED, PWMRANGE - level);
+#endif
 }
 
 /**
@@ -690,10 +727,12 @@ void setup() {
   Serial.print("\r\n");
 
   // Hardware data
+#ifdef ESP8266
   int hwVcc  = ESP.getVcc();
   Serial.print(F("$PHWMN,VCC,"));
   Serial.print((float)hwVcc / 1000, 3);
   Serial.print("\r\n");
+#endif
 
   // Initialize the random number generator and set the APRS telemetry start sequence
   // Use a more secure seed combining multiple entropy sources

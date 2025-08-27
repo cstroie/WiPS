@@ -39,6 +39,9 @@
 #define NMEA_H
 
 #include "Arduino.h"
+#ifdef ESP32
+  #include <WiFi.h>
+#endif
 
 /**
   NMEA-0183 sentence generator class
