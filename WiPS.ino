@@ -732,6 +732,11 @@ void setup() {
   Serial.print(F("$PHWMN,VCC,"));
   Serial.print((float)hwVcc / 1000, 3);
   Serial.print("\r\n");
+#else
+  int hwVcc  = ESP_getVcc();
+  Serial.print(F("$PHWMN,VCC,"));
+  Serial.print((float)hwVcc / 1000, 3);
+  Serial.print("\r\n");
 #endif
 
   // Initialize the random number generator and set the APRS telemetry start sequence
