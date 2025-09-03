@@ -88,7 +88,7 @@ class GLS {
       
       @return Accuracy in meters, or -1 on error
     */
-    int   geoLocation(nets_t* nets, geo_t* loc);
+    int   geoLocation(geo_t* loc, nets_t* nets, int netCount);
     
   private:
 };

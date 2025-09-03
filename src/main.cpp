@@ -265,7 +265,7 @@ bool wifiCheckHTTP(char* server, int port, int timeout = 10000) {
   testClient.setTimeout(timeout);
   
   // Only use insecure connection when explicitly configured for testing
-  #ifdef GEO_INSECURE
+  #ifdef GEO_INSECURE_DISABLED
   if (strcmp(GEO_SERVER, "www.googleapis.com") == 0 && 
       strcmp(GEO_APIKEY, "USE_YOUR_GOOGLE_KEY") == 0) {
     testClient.setInsecure();
@@ -826,13 +826,14 @@ void loop() {
     unsigned long utm = ntp.getSeconds();
 
     // Scan for nearby WiFi access points
-    Serial.print(F("$PSCAN,WIFI,"));
+    //Serial.print(F("$PSCAN,WIFI\r\n"));
     int found = geo.wifiScan(false);
 
     // Process geolocation if WiFi networks were found
     if (found > 0) {
       // Increase LED brightness during geolocation
       setLED(6);
+      Serial.print(F("$PSCAN,WIFI,"));
       Serial.print(found);
       Serial.print(","); Serial.print(ntp.getSeconds() - utm);
       Serial.print("s\r\n");

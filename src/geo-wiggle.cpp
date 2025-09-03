@@ -141,7 +141,7 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
     }
 
     // Read the entire response body into a buffer
-    const int responseSize = 2048;
+    const int responseSize = 512;
     char response[responseSize] = "";
     int responseLen = 0;
     
@@ -152,6 +152,8 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
       yield();
     }
     response[responseLen] = '\0';
+
+    Serial.println(response); // For debugging
     
     // Parse the JSON response to extract location data
     bool success = false;

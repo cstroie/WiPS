@@ -26,10 +26,12 @@
 #include "platform.h"
 
 
-#if defined(GEO_GLS_KEY)
-  #include "geo-gls.h"
-#elif defined(GEO_WIGGLE_KEY)
+#if defined(GEO_WIGGLE_KEY)
   #include "geo-wiggle.h"
+  WIGGLE geo_ls;
+#elif defined(GEO_GLS_KEY)
+  #include "geo-gls.h"
+  GLS geo_ls;
 #else
   #error "No geolocation service defined"
 #endif
@@ -125,15 +127,8 @@ int GEO::geoLocation() {
   int   acc = -1;      // Accuracy in meters
   geo_t temp;          // Temporary result
 
-#if defined(GEO_GLS_KEY)
-  GLS geo_ls;
-#elif defined(GEO_WIGGLE_KEY)
-  WIGGLE geo_ls;
-#else
-#error "No geolocation service"
-#endif
-
-  acc = geo_ls.geoLocation(nets, &temp);
+  // Perform geolocation using the selected service
+  acc = geo_ls.geoLocation(&temp, nets, netCount);
 
   // Invalidate previous coordinates if they're too old (over 1 hour)
   if (millis() - previous.uptm > 3600000UL) previous.valid = false;

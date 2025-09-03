@@ -51,13 +51,11 @@ void GLS::init() {
   
   @return Accuracy in meters if successful, negative error code on failure
 */
-int GLS::geoLocation(nets_t* nets, geo_t* loc) {
+int GLS::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
   int   err = -1;      // Error code
   int   acc = -1;      // Accuracy in meters
   float lat = 0.0;     // Latitude
   float lng = 0.0;     // Longitude
-
-  int netCount = sizeof(nets)/sizeof(nets[0]);
 
   // Create the secure WiFi client for HTTPS communication
   WiFiClientSecure geoClient;
@@ -65,11 +63,8 @@ int GLS::geoLocation(nets_t* nets, geo_t* loc) {
   
   // Only use setInsecure() if GEO_APIKEY is not properly configured (for testing only)
   #ifdef GEO_INSECURE
-  if (strcmp(GEO_SERVER, "www.googleapis.com") == 0 && 
-      strcmp(GEO_APIKEY, "USE_YOUR_GOOGLE_KEY") == 0) {
-    geoClient.setInsecure();
-    Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection for geolocation testing"));
-  }
+  geoClient.setInsecure();
+  Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection"));
   #endif
 
   // Try to connect to the geolocation server
