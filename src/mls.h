@@ -54,9 +54,9 @@
 #define GEO_SERVER    "api.wigle.net"
 #define GEO_PORT      443
 #ifdef ESP32
-  #define GEO_POST      "POST /api/v2/network/geolocate HTTP/1.1"
+  #define GEO_POST      "POST /api/v2/network/search HTTP/1.1"
 #else
-  #define GEO_POST      "POST /api/v2/network/geolocate HTTP/1.1"
+  #define GEO_POST      "POST /api/v2/network/search HTTP/1.1"
 #endif
 
 const char geoServer[]        = GEO_SERVER;
