@@ -52,7 +52,7 @@
 // Define GeoLocation server
 #define GEO_SERVER    "api.wigle.net"
 #define GEO_PORT      443
-#define GEO_PATH       "GET /api/v2/network/search HTTP/1.1"
+#define GEO_PATH      "GET /api/v2/network/search HTTP/1.1"
 
 const char geoServer[]        = GEO_SERVER;
 const int  geoPort            = GEO_PORT;

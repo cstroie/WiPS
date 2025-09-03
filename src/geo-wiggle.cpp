@@ -63,13 +63,10 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
   WiFiClientSecure geoClient;
   geoClient.setTimeout(5000);
   
-  // Only use setInsecure() if GEO_APIKEY is not properly configured (for testing only)
+  // Set up authentication - assuming GEO_APIKEY is defined in config
   #ifdef GEO_INSECURE
-  if (strcmp(GEO_SERVER, "www.googleapis.com") == 0 && 
-      strcmp(GEO_APIKEY, "USE_YOUR_GOOGLE_KEY") == 0) {
-    geoClient.setInsecure();
-    Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection for geolocation testing"));
-  }
+  geoClient.setInsecure();
+  Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection for geolocation testing"));
   #endif
 
   // Try to connect to the geolocation server
@@ -81,10 +78,35 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
     // Record the current time for location timestamp
     unsigned long now = millis();
 
+    // Build the query parameters for the first BSSID (Wigle API searches by netid/BSSID)
+    if (netCount > 0) {
+      strcpy_P(buf, PSTR("netid="));
+      
+      // Convert first BSSID to hex string format
+      char bssidStr[18];  // MAC address format: XX:XX:XX:XX:XX:XX
+      uint8_t* bss = nets[0].bssid;
+      snprintf(bssidStr, sizeof(bssidStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+               bss[0], bss[1], bss[2], bss[3], bss[4], bss[5]);
+      
+      strcat(buf, bssidStr);
+    }
+
   #ifdef ESP32
     // Send HTTP request headers for ESP32
-    // Request line
-    strcpy(buf, geoPATH);
+    // Request line with query parameters
+    strcpy(buf, "GET /api/v2/network/search?");
+    if (netCount > 0) {
+      char bssidParam[50];
+      strcpy_P(bssidParam, PSTR("netid="));
+      // Convert first BSSID to hex string format
+      char bssidStr[18];
+      uint8_t* bss = nets[0].bssid;
+      snprintf(bssidStr, sizeof(bssidStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+               bss[0], bss[1], bss[2], bss[3], bss[4], bss[5]);
+      strcat(bssidParam, bssidStr);
+      strcat(buf, bssidParam);
+    }
+    strcat(buf, " HTTP/1.1");
     strcat(buf, eol);
     geoClient.print(buf);
     yield();
@@ -96,24 +118,15 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
     geoClient.print(buf);
     yield();
   
+    // Authorization header - Basic auth with API key
+    strcpy(buf, "Authorization: Basic ");
+    strcat(buf, GEO_APIKEY);
+    strcat(buf, eol);
+    geoClient.print(buf);
+    yield();
+  
     // User agent header
-    strcpy(buf, "User-Agent: Arduino-MLS/0.1");
-    strcat(buf, eol);
-    geoClient.print(buf);
-    yield();
-  
-    // Content type header
-    strcpy(buf, "Content-Type: application/json");
-    strcat(buf, eol);
-    geoClient.print(buf);
-    yield();
-  
-    // Content length header: each network entry is ~60 chars, plus 24 for JSON structure
-    const int sbufSize = 8;
-    char sbuf[sbufSize] = "";
-    strcpy(buf, "Content-Length: ");
-    itoa(24 + 60 * netCount, sbuf, 10);
-    strncat(buf, sbuf, sbufSize);
+    strcpy(buf, "User-Agent: Arduino-Wigle/0.1");
     strcat(buf, eol);
     geoClient.print(buf);
     yield();
@@ -126,8 +139,20 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
     yield();
   #else
     // Send HTTP request headers for ESP8266
-    // Request line
-    strcpy_P(buf, geoPATH);
+    // Request line with query parameters
+    strcpy_P(buf, PSTR("GET /api/v2/network/search?"));
+    if (netCount > 0) {
+      char bssidParam[50];
+      strcpy_P(bssidParam, PSTR("netid="));
+      // Convert first BSSID to hex string format
+      char bssidStr[18];
+      uint8_t* bss = nets[0].bssid;
+      snprintf(bssidStr, sizeof(bssidStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+               bss[0], bss[1], bss[2], bss[3], bss[4], bss[5]);
+      strcat(bssidParam, bssidStr);
+      strcat(buf, bssidParam);
+    }
+    strcat_P(buf, PSTR(" HTTP/1.1"));
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();
@@ -139,24 +164,15 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
     geoClient.print(buf);
     yield();
   
+    // Authorization header - Basic auth with API key
+    strcpy_P(buf, PSTR("Authorization: Basic "));
+    strcat(buf, GEO_APIKEY);
+    strcat_P(buf, eol);
+    geoClient.print(buf);
+    yield();
+  
     // User agent header
-    strcpy_P(buf, PSTR("User-Agent: Arduino-MLS/0.1"));
-    strcat_P(buf, eol);
-    geoClient.print(buf);
-    yield();
-  
-    // Content type header
-    strcpy_P(buf, PSTR("Content-Type: application/json"));
-    strcat_P(buf, eol);
-    geoClient.print(buf);
-    yield();
-  
-    // Content length header: each network entry is ~60 chars, plus 24 for JSON structure
-    const int sbufSize = 8;
-    char sbuf[sbufSize] = "";
-    strcpy_P(buf, PSTR("Content-Length: "));
-    itoa(24 + 60 * netCount, sbuf, 10);
-    strncat(buf, sbuf, sbufSize);
+    strcpy_P(buf, PSTR("User-Agent: Arduino-Wigle/0.1"));
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();
@@ -169,50 +185,6 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
     yield();
   #endif
 
-    // Send JSON payload with WiFi access point data
-    // Start of JSON object
-    strcpy_P(buf, PSTR("{\"considerIp\": false, \"wifiAccessPoints\": [\n"));
-    geoClient.print(buf);
-    
-    // Add each detected WiFi network's data
-    for (size_t i = 0; i < netCount; ++i) {
-      char sbuf[4] = "";
-      
-      // Start network object with MAC address
-      strcpy_P(buf, PSTR("{\"macAddress\": \""));
-      
-      // Convert BSSID bytes to hex string with colons
-      uint8_t* bss = nets[i].bssid;
-      for (size_t b = 0; b < 6; b++) {
-        itoa(bss[b], sbuf, 16);
-        if (bss[b] < 16) strcat(buf, "0");  // Pad single digit hex values
-        strncat(buf, sbuf, 4);
-        if (b < 5) strcat(buf, ":");        // Add colon separators
-      }
-      
-      // Add signal strength (RSSI)
-      strcat_P(buf, PSTR("\", \"signalStrength\": "));
-      itoa(nets[i].rssi, sbuf, 10);
-      strncat(buf, sbuf, 4);
-      
-      // Add optional fields with default values
-      strcat_P(buf, PSTR(", \"age\": 0"));                    // Age in milliseconds
-      strcat_P(buf, PSTR(", \"channel\": 0"));                // Channel number
-      strcat_P(buf, PSTR(", \"signalToNoiseRatio\": 0"));     // SNR in dB
-      
-      // Close network object
-      strcat(buf, "}");
-      if (i < netCount - 1) strcat(buf, ",\n");  // Add comma if not last item
-      
-      // Send the network data
-      geoClient.print(buf);
-      yield();
-    }
-    
-    // Close JSON array and object
-    strcpy_P(buf, PSTR("]}\n"));
-    geoClient.print(buf);
-
     // Read and process HTTP response headers
     while (geoClient.connected()) {
       int rlen = geoClient.readBytesUntil('\r', buf, bufSize);
@@ -221,26 +193,48 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
     }
 
     // Parse the JSON response to extract location data
-    while (geoClient.connected()) {
-      int rlen = geoClient.readBytesUntil(':', buf, bufSize);
-      buf[rlen] = '\0';
-      
-      // Check for different JSON fields in the response
-      if      (strstr_P(buf, PSTR("\"lat\"")))      lat = geoClient.parseFloat();      // Latitude
-      else if (strstr_P(buf, PSTR("\"lng\"")))      lng = geoClient.parseFloat();      // Longitude
-      else if (strstr_P(buf, PSTR("\"accuracy\""))) acc = geoClient.parseInt();       // Accuracy
-      else if (strstr_P(buf, PSTR("\"error\""))) {
-        // Error response - extract error code
-        geoClient.find("\"code\":");
-        err = geoClient.parseInt();
+    bool success = false;
+    bool foundResults = false;
+    
+    while (geoClient.connected() && geoClient.available()) {
+      // Look for "success" field
+      if (geoClient.find("\"success\"")) {
+        geoClient.find(":");
+        success = geoClient.parseInt() == 1;
       }
+      
+      // Look for "totalResults" field
+      if (geoClient.find("\"totalResults\"")) {
+        geoClient.find(":");
+        int totalResults = geoClient.parseInt();
+        foundResults = (totalResults > 0);
+      }
+      
+      // Look for latitude and longitude in the first result
+      if (foundResults && geoClient.find("\"trilat\"")) {
+        geoClient.find(":");
+        lat = geoClient.parseFloat();
+      }
+      
+      if (foundResults && geoClient.find("\"trilong\"")) {
+        geoClient.find(":");
+        lng = geoClient.parseFloat();
+      }
+      
+      // Look for accuracy (using range as proxy for accuracy)
+      if (foundResults && geoClient.find("\"range\"")) {
+        geoClient.find(":");
+        acc = geoClient.parseInt();
+      }
+      
+      break;
     }
 
     // Close the HTTPS connection
     geoClient.stop();
 
     // Validate the received location data
-    if (acc >= 0 and acc <= GEO_MAXACC) {
+    if (success && foundResults && acc >= 0 && acc <= GEO_MAXACC) {
       // Valid location with acceptable accuracy
       
       // Store the new location data
@@ -252,6 +246,9 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
     else {
       // Invalid or inaccurate location data
       loc->valid = false;
+      if (!success) err = 1;
+      else if (!foundResults) err = 2;
+      else err = 3;
     }
   }
 
