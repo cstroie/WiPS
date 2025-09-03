@@ -163,16 +163,8 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
         }
       }
       
-      // Look for accuracy (using range as proxy for accuracy)
-      int rangeIndex = response.indexOf("\"range\"");
-      if (rangeIndex != -1) {
-        int colonIndex = response.indexOf(":", rangeIndex);
-        if (colonIndex != -1) {
-          int commaIndex = response.indexOf(",", colonIndex);
-          int endIndex = (commaIndex != -1) ? commaIndex : response.length();
-          acc = response.substring(colonIndex + 1, endIndex).toInt();
-        }
-      }
+      // Set accuracy to 1 when successful
+      acc = 1;
     }
 
     // Validate the received location data
