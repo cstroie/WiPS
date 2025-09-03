@@ -724,7 +724,11 @@ void setup() {
   // Configure APRS
   aprs.init(APRS_SERVER, APRS_PORT);
   // Use an automatic callsign
+#ifdef CALLSIGN
   aprs.setCallSign(CALLSIGN);
+#else
+  aprs.setCallSign(NULL);  // Use automatic callsign generation
+#endif
   Serial.print(F("$PAPRS,AUTH,")); Serial.print(aprs.aprsCallSign);
   Serial.print(","); Serial.print(aprs.aprsPassCode);
   //Serial.print(","); Serial.print(aprs.aprsObjectNm);
