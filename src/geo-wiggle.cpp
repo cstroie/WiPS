@@ -101,9 +101,8 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
     }
     strcat_P(buf, PSTR(" HTTP/1.1"));
     strcat_P(buf, eol);
-    geoClient.print(buf);
     yield();
-  
+
     // Host header
     strcpy_P(buf, PSTR("Host: "));
     strcat(buf, geoServer);
@@ -130,8 +129,6 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();
-
-    Serial.println(buf);
 
     // Read and process HTTP response headers
     while (geoClient.connected()) {
