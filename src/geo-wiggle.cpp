@@ -57,10 +57,6 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
   float lat = 0.0;     // Latitude
   float lng = 0.0;     // Longitude
 
-  // Get the number of networks AI!
-  int netCount = sizeof(nets)/sizeof(nets[0]);
-  Serial.println(netCount);
-
   // Create the secure WiFi client for HTTPS communication
   WiFiClientSecure geoClient;
   geoClient.setTimeout(5000);
