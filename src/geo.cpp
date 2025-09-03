@@ -171,6 +171,12 @@ int GEO::geoLocation() {
   int   err = -1;      // Error code
   int   acc = -1;      // Accuracy in meters
   geo_t temp;          // Temporary result
+  
+  // Copy current values to temp
+  temp.valid     = current.valid;
+  temp.latitude  = current.latitude;
+  temp.longitude = current.longitude;
+  temp.uptm      = current.uptm;
 
   // Check if networks have changed significantly
   if (!networksChanged(nets, netCount)) {
