@@ -1,6 +1,6 @@
 /**
   WiPS - Wireless Positioning System and Automated Position Reporting System
-         based on WiFi geolocation, using Mozilla Location Services and Google Geolocation API.
+         based on WiFi geolocation, using WiGLE.net API.
 
   This project provides:
   - WiFi-based geolocation using nearby access points
