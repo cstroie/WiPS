@@ -107,6 +107,10 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
     // Get the response payload
     String response = https.getString();
 
+    /* Sample response
+    {"success":true,"totalResults":1,"first":1,"last":1,"resultCount":1,"results":[{"trilat":44.45269775,"trilong":26.09328461,"ssid":"DIRECT-62-HP M140 LaserJet","qos":7,"transid":"20241025-00000","firsttime":"2024-10-26T01:00:00.000Z","lasttime":"2025-03-29T11:00:00.000Z","lastupdt":"2025-03-29T12:00:00.000Z","netid":"D2:AD:08:CA:05:62","name":null,"type":"infra","comment":null,"wep":"2","bcninterval":0,"freenet":"?","dhcp":"?","paynet":"?","userfound":false,"channel":6,"frequency":2437,"rcois":"0","encryption":"wpa2","country":"RO","region":"Dorobanți","road":"Bulevardul Iancu de Hunedoara","city":"Municipiul București","housenumber":null,"postalcode":"011744"}],"searchAfter":"231640618632546","search_after":231640618632546}
+    */
+
     Serial.println(response); // For debugging
     
     // Parse the JSON response to extract location data
@@ -144,6 +148,7 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
           int commaIndex = response.indexOf(",", colonIndex);
           int endIndex = (commaIndex != -1) ? commaIndex : response.length();
           lat = response.substring(colonIndex + 1, endIndex).toFloat();
+          Serial.println(lat);
         }
       }
       
@@ -154,6 +159,7 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
           int commaIndex = response.indexOf(",", colonIndex);
           int endIndex = (commaIndex != -1) ? commaIndex : response.length();
           lng = response.substring(colonIndex + 1, endIndex).toFloat();
+          Serial.println(lng);
         }
       }
       
