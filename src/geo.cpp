@@ -38,6 +38,11 @@
 
 
 GEO::GEO() {
+  // Initialize current location with default values
+  current.latitude  = 0.0;
+  current.longitude = 0.0;
+  current.valid     = false;
+  current.uptm      = 0;
 }
 
 void GEO::init() {
