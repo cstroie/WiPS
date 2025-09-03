@@ -1,5 +1,5 @@
 /**
-  geo-gls.cpp - Google Location Services Geolocation
+  geo-wiggle.cpp - Google Location Services Geolocation
 
   Implementation of WiFi-based geolocation using Mozilla Location Services
   and Google Geolocation API. Handles WiFi scanning, HTTPS communication,
@@ -22,17 +22,17 @@
 */
 
 #include "Arduino.h"
-#include "geo-gls.h"
+#include "geo-wiggle.h"
 #include "platform.h"
 
 // End of line string
 static const char eol[]    PROGMEM = "\r\n";
 
 
-GLS::GLS() {
+WIGGLE::WIGGLE() {
 }
 
-void GLS::init() {
+void WIGGLE::init() {
 }
 
 /**
@@ -51,7 +51,7 @@ void GLS::init() {
   
   @return Accuracy in meters if successful, negative error code on failure
 */
-int GLS::geoLocation(nets_t* nets, geo_t* loc) {
+int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
   int   err = -1;      // Error code
   int   acc = -1;      // Accuracy in meters
   float lat = 0.0;     // Latitude
@@ -84,7 +84,7 @@ int GLS::geoLocation(nets_t* nets, geo_t* loc) {
   #ifdef ESP32
     // Send HTTP request headers for ESP32
     // Request line
-    strcpy(buf, geoPOST);
+    strcpy(buf, geoPATH);
     strcat(buf, eol);
     geoClient.print(buf);
     yield();
@@ -127,7 +127,7 @@ int GLS::geoLocation(nets_t* nets, geo_t* loc) {
   #else
     // Send HTTP request headers for ESP8266
     // Request line
-    strcpy_P(buf, geoPOST);
+    strcpy_P(buf, geoPATH);
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();

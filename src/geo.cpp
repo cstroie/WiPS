@@ -25,6 +25,16 @@
 #include "geo.h"
 #include "platform.h"
 
+
+#if defined(GEO_GLS_KEY)
+  #include "geo-gls.h"
+#elif defined(GEO_WIGGLE_KEY)
+  #include "geo-wiggle.h"
+#else
+  #error "No geolocation service defined"
+#endif
+
+
 GEO::GEO() {
 }
 
@@ -76,7 +86,7 @@ int GEO::wifiScan(bool sort) {
   // Sort networks by RSSI strength if requested (strongest first)
   if (sort) {
     // Bubble sort implementation for RSSI descending order
-    BSSID_RSSI tmp;
+    nets_t tmp;
     for (size_t i = 1; i < netCount; i++) {
       for (size_t j = i; j > 0 && (nets[j - 1].rssi < nets[j].rssi); j--) {
         // Swap network entries
@@ -115,44 +125,44 @@ int GEO::geoLocation() {
   int   acc = -1;      // Accuracy in meters
   geo_t temp;          // Temporary result
 
-#ifdef GEO_GLS_KEY
+#if defined(GEO_GLS_KEY)
   GLS geo_ls;
-#else ifdef GEO_WIGGLE_KEY
+#elif defined(GEO_WIGGLE_KEY)
   WIGGLE geo_ls;
 #else
 #error "No geolocation service"
 #endif
 
-  acc = geo_ls.geoLocation(nets, temp);
+  acc = geo_ls.geoLocation(nets, &temp);
 
-    // Invalidate previous coordinates if they're too old (over 1 hour)
-    if (now - previous.uptm > 3600000UL) previous.valid = false;
+  // Invalidate previous coordinates if they're too old (over 1 hour)
+  if (millis() - previous.uptm > 3600000UL) previous.valid = false;
 
-    // Validate the received location data
-    if (acc >= 0 and acc <= GEO_MAXACC) {
-      // Valid location with acceptable accuracy
-      
-      // If we already had a valid location, save it as previous
-      if (current.valid) {
-        previous.valid      = current.valid;
-        previous.latitude   = current.latitude;
-        previous.longitude  = current.longitude;
-        previous.uptm       = current.uptm;
-      }
-      
-      // Store the new location data
-      current.valid     = true;
-      current.latitude  = temp.latitude;
-      current.longitude = temp.longitude;
-      current.uptm      = temp.uptm;
-      
-      // Calculate and store the Maidenhead locator for this location
-      getLocator(current.latitude, current.longitude);
+  // Validate the received location data
+  if (acc >= 0 and acc <= GEO_MAXACC) {
+    // Valid location with acceptable accuracy
+    
+    // If we already had a valid location, save it as previous
+    if (current.valid) {
+      previous.valid      = current.valid;
+      previous.latitude   = current.latitude;
+      previous.longitude  = current.longitude;
+      previous.uptm       = current.uptm;
     }
-    else {
-      // Invalid or inaccurate location data
-      current.valid = false;
-    }
+    
+    // Store the new location data
+    current.valid     = true;
+    current.latitude  = temp.latitude;
+    current.longitude = temp.longitude;
+    current.uptm      = temp.uptm;
+    
+    // Calculate and store the Maidenhead locator for this location
+    getLocator(current.latitude, current.longitude);
+  }
+  else {
+    // Invalid or inaccurate location data
+    current.valid = false;
+  }
 
   // Handle error codes - return negative error code if present
   if (err > 0) acc = -err;

@@ -28,6 +28,6 @@
 // Device identification constants
 const char NODENAME[] = "WiPS";     ///< Device name for network services
 const char nodename[] = "wips";     ///< Lowercase device name
-const char VERSION[]  = "0.3.20";   ///< Software version string
+const char VERSION[]  = "0.4.1";   ///< Software version string
 
 #endif /* VERSION_H */

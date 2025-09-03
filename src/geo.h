@@ -50,23 +50,6 @@
 #include <WiFiClientSecure.h>
 #include "config.h"
 
-// Define GeoLocation server
-#define GEO_SERVER    "api.wigle.net"
-#define GEO_PORT      443
-#ifdef ESP32
-  #define GEO_POST      "POST /api/v2/network/search HTTP/1.1"
-#else
-  #define GEO_POST      "POST /api/v2/network/search HTTP/1.1"
-#endif
-
-const char geoServer[]        = GEO_SERVER;
-const int  geoPort            = GEO_PORT;
-#ifdef ESP32
-  const char geoPOST[] = GEO_POST;
-#else
-  const char geoPOST[] PROGMEM  = GEO_POST;
-#endif
-
 /**
   Geolocation data structure
   

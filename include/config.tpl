@@ -37,6 +37,10 @@
 // Get your Google Geolocation API key from https://developers.google.com/maps/documentation/geolocation
 #define GEO_GLS_KEY    "USE_YOUR_GOOGLE_KEY"
 
+// Get your WiGLE API key from https://wigle.net/
+// Format: "base64encoded_username:password"
+//#define GEO_WIGGLE_KEY    "USE_YOUR_WIGGLE_KEY"
+
 // APRS-IS Configuration
 #define APRS_SERVER   "cbaprs.de"  // APRS-IS server
 #define APRS_PORT     27235        // APRS-IS port (27235 for filtered, 14580 for full feed)

@@ -1,5 +1,5 @@
 /**
-  geo-gls.h - Google Location Services Geolocation
+  geo-wiggle.h - Wiggle Location Services Geolocation
          
   This library provides WiFi-based geolocation functionality using
   Mozilla Location Services (MLS) and Google Geolocation API.
@@ -35,8 +35,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GLS_H
-#define GLS_H
+#ifndef WIGGLE_H
+#define WIGGLE_H
 
 #include "Arduino.h"
 #ifdef ESP32
@@ -50,16 +50,16 @@
 #include "config.h"
 
 // Define GeoLocation server
-#define GEO_SERVER    "www.googleapis.com"
+#define GEO_SERVER    "api.wigle.net"
 #define GEO_PORT      443
-#define GEO_POST      "POST /geolocation/v1/geolocate?key=" GEO_GLS_KEY " HTTP/1.1"
+#define GEO_PATH       "GET /api/v2/network/search HTTP/1.1"
 
 const char geoServer[]        = GEO_SERVER;
 const int  geoPort            = GEO_PORT;
 #ifdef ESP32
-  const char geoPOST[] = GEO_POST;
+  const char geoPATH[] = GEO_PATH;
 #else
-  const char geoPOST[] PROGMEM  = GEO_POST;
+  const char geoPATH[] PROGMEM  = GEO_PATH;
 #endif
 
 /**
@@ -68,15 +68,15 @@ const int  geoPort            = GEO_PORT;
   Provides methods for WiFi scanning, geolocation, movement tracking,
   and coordinate conversions.
 */
-class GLS {
+class WIGGLE {
   public:
     /**
-      Constructor - Initialize GLS object with default values
+      Constructor - Initialize WIGGLE object with default values
     */
-    GLS();
+    WIGGLE();
     
     /**
-      Initialize GLS - currently empty but reserved for future use
+      Initialize WIGGLE - currently empty but reserved for future use
     */
     void  init();
     
@@ -93,4 +93,4 @@ class GLS {
   private:
 };
 
-#endif /* GLS_H */
+#endif /* WIGGLE_H */
