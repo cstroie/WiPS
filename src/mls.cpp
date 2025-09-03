@@ -126,7 +126,7 @@ int MLS::geoLocation() {
   // Only use setInsecure() if GEO_APIKEY is not properly configured (for testing only)
   #ifdef GEO_INSECURE
   if (strcmp(GEO_SERVER, "api.wigle.net") == 0 && 
-      strcmp(GEO_APIKEY, "USE_YOUR_MLS_KEY") == 0) {
+      strcmp(GEO_APIKEY, "USE_YOUR_WIGLE_KEY") == 0) {
     geoClient.setInsecure();
     Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection for geolocation testing"));
   }

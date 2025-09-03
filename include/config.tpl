@@ -33,7 +33,7 @@
 // Geolocation Settings
 // Get your WiGLE API key from https://wigle.net/
 // Format: "base64encoded_username:password"
-#define GEO_APIKEY    "USE_YOUR_WIGLE_KEY"
+//#define GEO_APIKEY    "USE_YOUR_WIGLE_KEY"
 #define GEO_MAXACC    250  // Maximum acceptable accuracy in meters
 #define GEO_MINACC    50   // Minimum acceptable accuracy in meters
 
