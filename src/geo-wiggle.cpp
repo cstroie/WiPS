@@ -24,7 +24,11 @@
 #include "Arduino.h"
 #include "geo-wiggle.h"
 #include "platform.h"
-#include <HTTPClient.h>
+#ifdef ESP32
+  #include <HTTPClient.h>
+#else
+  #include <ESP8266HTTPClient.h>
+#endif
 
 // End of line string
 static const char eol[]    PROGMEM = "\r\n";
