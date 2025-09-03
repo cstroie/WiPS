@@ -239,49 +239,24 @@ int WIGGLE::geoLocation() {
     yield();
   #endif
 
-    // Send JSON payload with WiFi access point data
-    // Start of JSON object
-    strcpy_P(buf, PSTR("{\"considerIp\": false, \"wifiAccessPoints\": [\n"));
-    wigleClient.print(buf);
+    // Send GET request with netid parameter for the first BSSID
+    strcpy_P(buf, PSTR("netid="));
     
-    // Add each detected WiFi network's data
-    for (size_t i = 0; i < netCount; ++i) {
+    // Add the first BSSID (MAC address) from the scan
+    if (netCount > 0) {
       char sbuf[4] = "";
+      uint8_t* bss = nets[0].bssid;  // Use the first BSSID
       
-      // Start network object with MAC address
-      strcpy_P(buf, PSTR("{\"macAddress\": \""));
-      
-      // Convert BSSID bytes to hex string with colons
-      uint8_t* bss = nets[i].bssid;
+      // Convert BSSID bytes to hex string without colons
       for (size_t b = 0; b < 6; b++) {
         itoa(bss[b], sbuf, 16);
-        if (bss[b] < 16) strcat(buf, "0");  // Pad single digit hex values
-        strncat(buf, sbuf, 4);
-        if (b < 5) strcat(buf, ":");        // Add colon separators
+        if (bss[b] < 16) wigleClient.print("0");  // Pad single digit hex values
+        wigleClient.print(sbuf);
       }
-      
-      // Add signal strength (RSSI)
-      strcat_P(buf, PSTR("\", \"signalStrength\": "));
-      itoa(nets[i].rssi, sbuf, 10);
-      strncat(buf, sbuf, 4);
-      
-      // Add optional fields with default values
-      strcat_P(buf, PSTR(", \"age\": 0"));                    // Age in milliseconds
-      strcat_P(buf, PSTR(", \"channel\": 0"));                // Channel number
-      strcat_P(buf, PSTR(", \"signalToNoiseRatio\": 0"));     // SNR in dB
-      
-      // Close network object
-      strcat(buf, "}");
-      if (i < netCount - 1) strcat(buf, ",\n");  // Add comma if not last item
-      
-      // Send the network data
-      wigleClient.print(buf);
-      yield();
     }
     
-    // Close JSON array and object
-    strcpy_P(buf, PSTR("]}\n"));
-    wigleClient.print(buf);
+    // End the request body
+    wigleClient.print("\r\n");
 
     // Read and process HTTP response headers
     while (wigleClient.connected()) {
