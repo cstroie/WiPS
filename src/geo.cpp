@@ -41,6 +41,7 @@ GEO::GEO() {
 }
 
 void GEO::init() {
+  prevNetCount = 0;
 }
 
 /**
@@ -107,6 +108,50 @@ int GEO::wifiScan(bool sort) {
 }
 
 /**
+  Compare current networks with previous networks to detect significant changes
+  
+  This function compares the newly scanned networks with previously scanned ones
+  to determine if there are significant changes that warrant a new geolocation request.
+  Changes are considered significant if:
+  1. The number of networks changed
+  2. Any network's RSSI changed by more than a threshold (10 dBm)
+  3. A network appeared or disappeared
+  
+  @param newNets Array of newly scanned networks
+  @param newCount Number of newly scanned networks
+  @return true if significant changes detected, false otherwise
+*/
+bool GEO::networksChanged(nets_t* newNets, int newCount) {
+  // If the number of networks changed significantly
+  if (newCount != prevNetCount) {
+    return true;
+  }
+  
+  // Compare each network's BSSID and RSSI
+  for (int i = 0; i < newCount; i++) {
+    bool found = false;
+    for (int j = 0; j < prevNetCount; j++) {
+      // Check if BSSID matches
+      if (memcmp(newNets[i].bssid, prevNets[j].bssid, WL_MAC_ADDR_LENGTH) == 0) {
+        found = true;
+        // Check if RSSI changed significantly (more than 10 dBm)
+        if (abs(newNets[i].rssi - prevNets[j].rssi) > 10) {
+          return true;
+        }
+        break;
+      }
+    }
+    // If a network disappeared or appeared
+    if (!found) {
+      return true;
+    }
+  }
+  
+  // No significant changes detected
+  return false;
+}
+
+/**
   Perform geolocation using collected WiFi data via Mozilla Location Services or Google Geolocation API
   
   This function sends the collected BSSID/RSSI data to a geolocation service over HTTPS
@@ -126,6 +171,25 @@ int GEO::geoLocation() {
   int   err = -1;      // Error code
   int   acc = -1;      // Accuracy in meters
   geo_t temp;          // Temporary result
+
+  // Check if networks have changed significantly
+  if (!networksChanged(nets, netCount)) {
+    // No significant changes, reuse previous location if valid
+    if (current.valid) {
+      // Update timestamp but keep the same location
+      current.uptm = millis();
+      // Calculate and store the Maidenhead locator for this location
+      getLocator(current.latitude, current.longitude);
+      return 1; // Return accuracy of 1 meter
+    }
+  }
+  
+  // Save current networks for next comparison
+  prevNetCount = netCount;
+  for (int i = 0; i < netCount && i < MAXNETS; i++) {
+    memcpy(prevNets[i].bssid, nets[i].bssid, WL_MAC_ADDR_LENGTH);
+    prevNets[i].rssi = nets[i].rssi;
+  }
 
   // Perform geolocation using the selected service
   acc = geo_ls.geoLocation(&temp, nets, netCount);

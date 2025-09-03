@@ -177,6 +177,18 @@ class GEO {
       Internal structure for storing WiFi network data
     */
     nets_t nets[MAXNETS];  ///< Array of network data
+    
+    /**
+      Compare current networks with previous networks to detect significant changes
+      
+      @param newNets Array of newly scanned networks
+      @param newCount Number of newly scanned networks
+      @return true if significant changes detected, false otherwise
+    */
+    bool networksChanged(nets_t* newNets, int newCount);
+    
+    nets_t prevNets[MAXNETS];  ///< Previous network data for comparison
+    int    prevNetCount;       ///< Previous number of networks
 };
 
 #endif /* GEO_H */
