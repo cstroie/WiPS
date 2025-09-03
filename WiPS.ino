@@ -125,7 +125,7 @@ nmeaReports nmeaReport = {1, 1, 0, 0, 0};
 #ifdef ESP32
 U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(/* clock=*/ 16, /* data=*/ 17, /* reset=*/ U8X8_PIN_NONE);
 #else
-U8X8_SSD128X32_UNIVISION_HW_I2C u8x8(16);
+U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(/* clock=*/ 16, /* data=*/ 17, /* reset=*/ U8X8_PIN_NONE);
 #endif
 #endif
 
@@ -220,7 +220,7 @@ void setLED(int load) {
   analogWrite(LED, 255 - (level >> 2));  // Scale down to 0-255 range
 #else
   // Set LED brightness (inverted because LED is active low on ESP8266)
-  analogWrite(LED, PWMRANGE - level);
+  analogWrite(LED, 1023 - level);
 #endif
 }
 
@@ -921,7 +921,7 @@ void loop() {
                          acc, (int)(mls.distance), (int)(3.6 * mls.speed), mls.getCardinal(sCrs),
                          vcc / 1000, (vcc % 1000) / 100, rssi);
               // Send position report with course, speed, and comment
-              aprs.sendPosition(utm, mls.current.latitude, mls.current.longitude, sCrs, mls.knots, acc, buf);
+              aprs.sendPosition(utm, mls.current.latitude, mls.current.longitude, sCrs, mls.knots, (float)acc, buf, NULL);
               // Send telemetry data with system metrics
               // Speed conversion: mls.speed / 0.0008 = mls.speed * 1250
               aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed * 1250)), aprs.aprsTlmBits);

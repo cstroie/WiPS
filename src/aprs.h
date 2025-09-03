@@ -57,7 +57,6 @@ static const char pstrDD[] PROGMEM = "%d.%d";
 static const char pstrSP[] PROGMEM = " ";
 static const char pstrCL[] PROGMEM = ":";
 static const char pstrSL[] PROGMEM = "/";
-static const char eol[]    PROGMEM = "\r\n";
 
 class APRS {
   public:
