@@ -51,7 +51,7 @@ void WIGGLE::init() {
   
   @return Accuracy in meters if successful, negative error code on failure
 */
-int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
+int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
   int   err = -1;      // Error code
   int   acc = -1;      // Accuracy in meters
   float lat = 0.0;     // Latitude
