@@ -354,7 +354,7 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
   if (WiFi.isConnected()) {
     showWiFi();
     result = wifiCheckHTTP(GEO_SERVER, GEO_PORT);
-    //result = (mls.geoLocation() >= 0);
+    //result = (geo.geoLocation() >= 0);
     if (!result)
       Serial.printf_P(PSTR("$PWIFI,ERR,%s\r\n"), _ssid);
   }
@@ -859,13 +859,13 @@ void loop() {
         u8x8.print(" FIX");
         u8x8.setCursor(0, 0);
         u8x8.print("Lat ");
-        u8x8.print(mls.current.latitude  >= 0 ? "N " : "S ");
-        u8x8.print(fabs(mls.current.latitude),  6);
+        u8x8.print(geo.current.latitude  >= 0 ? "N " : "S ");
+        u8x8.print(fabs(geo.current.latitude),  6);
         u8x8.setCursor(0, 1);
         u8x8.print("Lng ");
-        u8x8.print(mls.current.longitude >= 0 ? "E" : "W");
-        if (abs(mls.current.longitude) < 100) u8x8.print(" ");
-        u8x8.print(fabs(mls.current.longitude), 6);
+        u8x8.print(geo.current.longitude >= 0 ? "E" : "W");
+        if (abs(geo.current.longitude) < 100) u8x8.print(" ");
+        u8x8.print(fabs(geo.current.longitude), 6);
 #endif
 
         // Check if the device is moving by comparing distance to accuracy threshold
@@ -882,14 +882,14 @@ void loop() {
           Serial.print(geo.bearing);      Serial.print("'");
 #ifdef HAVE_OLED
           // Update OLED display with movement information
-          u8x8.setCursor(0, 2); u8x8.print("Spd "); u8x8.print(mls.speed, 2);
+          u8x8.setCursor(0, 2); u8x8.print("Spd "); u8x8.print(geo.speed, 2);
           u8x8.setCursor(9, 2); u8x8.print("Crs "); u8x8.print(sCrs);
 #endif
         }
 #ifdef HAVE_OLED
         else {
           // Display the locator when stationary
-          u8x8.setCursor(0, 2); u8x8.print("Loc "); u8x8.print((char*)mls.locator);
+          u8x8.setCursor(0, 2); u8x8.print("Loc "); u8x8.print((char*)geo.locator);
         }
 #endif
         Serial.print("\r\n");
@@ -931,7 +931,7 @@ void loop() {
                 // Reset delay to minimum when moving for frequent updates
                 rpDelay = rpDelayMin;
                 // Set telemetry bits 4 and 5 based on speed for status indication
-                if (mls.speed > 10) aprs.aprsTlmBits |= B00100000;  // High speed
+                if (geo.speed > 10) aprs.aprsTlmBits |= B00100000;  // High speed
                 else                aprs.aprsTlmBits |= B00010000;  // Low speed
               }
               else {

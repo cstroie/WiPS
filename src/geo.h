@@ -86,7 +86,7 @@ struct geo_t {
   Provides methods for WiFi scanning, geolocation, movement tracking,
   and coordinate conversions.
 */
-class MLS {
+class GEO {
   public:
     /**
       Constructor - Initialize GEO object with default values
