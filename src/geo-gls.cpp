@@ -64,7 +64,7 @@ int GLS::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
   // Only use setInsecure() if GEO_APIKEY is not properly configured (for testing only)
   #ifdef GEO_INSECURE
   geoClient.setInsecure();
-  Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection"));
+  Serial.println(F("$PSEC,WARN,Using insecure HTTPS connection"));
   #endif
 
   // Try to connect to the geolocation server
