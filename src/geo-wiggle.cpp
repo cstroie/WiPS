@@ -79,13 +79,21 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
     // Send HTTP request headers for ESP8266 and ESP32
     // Request line with query parameters
     strcpy_P(buf, PSTR("GET /api/v2/network/search?"));
-    // Build the query parameters for the first BSSID (Wigle API searches by netid/BSSID)
+    // Build the query parameters for the BSSID with highest RSSI (Wigle API searches by netid/BSSID)
     if (netCount > 0) {
+      // Find the BSSID with the highest RSSI
+      int bestIndex = 0;
+      for (int i = 1; i < netCount; i++) {
+        if (nets[i].rssi > nets[bestIndex].rssi) {
+          bestIndex = i;
+        }
+      }
+      
       char bssidParam[50];
       strcpy_P(bssidParam, PSTR("netid="));
-      // Convert first BSSID to hex string format
+      // Convert best BSSID to hex string format
       char bssidStr[18];
-      uint8_t* bss = nets[0].bssid;
+      uint8_t* bss = nets[bestIndex].bssid;
       snprintf(bssidStr, sizeof(bssidStr), "%02X:%02X:%02X:%02X:%02X:%02X",
                bss[0], bss[1], bss[2], bss[3], bss[4], bss[5]);
       strcat(bssidParam, bssidStr);
