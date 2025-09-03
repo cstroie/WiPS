@@ -156,15 +156,15 @@ bool GEO::networksChanged(nets_t* newNets, int newCount) {
 }
 
 /**
-  Perform geolocation using collected WiFi data via configured geolocation service
+  Perform geolocation using collected WiFi data via WiGLE.net API
   
-  This function sends the collected BSSID/RSSI data to a geolocation service over HTTPS
+  This function sends a randomly selected BSSID to WiGLE.net over HTTPS
   and parses the JSON response to extract latitude, longitude, and accuracy information.
   
   The process involves:
-  1. Creating a secure HTTPS connection to the geolocation service
-  2. Building a request with WiFi access point data
-  3. Sending an HTTP request
+  1. Creating a secure HTTPS connection to WiGLE.net
+  2. Building a query with a randomly selected BSSID
+  3. Sending an HTTP GET request
   4. Reading and parsing the JSON response
   5. Extracting location coordinates and accuracy
   6. Updating internal location state and Maidenhead locator
