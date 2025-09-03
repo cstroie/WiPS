@@ -35,6 +35,9 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+// Forward declarations
+void sendNMEASentences(unsigned long utm, bool useCurrentLocation);
+
 // True if the tracker is being probed (used for telemetry bit setting)
 bool PROBE = true;
 
