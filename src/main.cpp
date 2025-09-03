@@ -372,6 +372,7 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
 */
 bool wifiTryKnownNetworks() {
   bool result = false;
+#ifdef WIFI_SSIDPASS
   if (strlen_P(wifiSP) > 0) {
     // Scan the networks
     int netCount = WiFi.scanNetworks();
@@ -481,6 +482,8 @@ bool wifiTryKnownNetworks() {
   }
   // Clear the scan results
   WiFi.scanDelete();
+  }
+#endif
   // Return the result
   return result;
 }
