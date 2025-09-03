@@ -1,5 +1,5 @@
 /**
-  mls.h - Mozilla Location Services Geolocation
+  geo.h - Mozilla Location Services Geolocation
          
   This library provides WiFi-based geolocation functionality using
   Mozilla Location Services (MLS) and Google Geolocation API.
@@ -35,8 +35,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MLS_H
-#define MLS_H
+#ifndef GEO_H
+#define GEO_H
 
 #define MAXNETS 32
 
@@ -80,20 +80,29 @@ struct geo_t {
 };
 
 /**
-  Mozilla Location Services geolocation class
+  Structure for storing WiFi network data
+*/
+struct nets_t {
+  uint8_t bssid[WL_MAC_ADDR_LENGTH];  ///< MAC address of access point
+  int8_t  rssi;                       ///< Signal strength in dBm
+};
+
+
+/**
+  Geolocation class
   
   Provides methods for WiFi scanning, geolocation, movement tracking,
   and coordinate conversions.
 */
-class MLS {
+class GEO {
   public:
     /**
-      Constructor - Initialize MLS object with default values
+      Constructor - Initialize GEO object with default values
     */
-    MLS();
+    GEO();
     
     /**
-      Initialize MLS - currently empty but reserved for future use
+      Initialize GEO - currently empty but reserved for future use
     */
     void  init();
     
@@ -184,10 +193,7 @@ class MLS {
     /**
       Internal structure for storing WiFi network data
     */
-    struct BSSID_RSSI {
-      uint8_t bssid[WL_MAC_ADDR_LENGTH];  ///< MAC address of access point
-      int8_t  rssi;                       ///< Signal strength in dBm
-    } nets[MAXNETS];  ///< Array of network data
+    nets_t nets[MAXNETS];  ///< Array of network data
 };
 
-#endif /* MLS_H */
+#endif /* GEO_H */

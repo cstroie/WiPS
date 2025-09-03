@@ -48,7 +48,7 @@
 static const char aprsPath[]     PROGMEM = ">WIDE1-1,TCPIP*:";
 static const char aprsTlmPARM[]  PROGMEM = "PARM.Vcc,RSSI,Heap,Acc,Spd,PROBE,FIX,FST,SLW,VCC,HT,RB,TM";
 static const char aprsTlmEQNS[]  PROGMEM = "EQNS.0,0.004,2.5,0,-1,0,0,256,0,0,1,0,0.0008,0,0";
-static const char aprsTlmUNIT[]  PROGMEM = "UNIT.V,dBm,Bytes,m,m/s,prb,on,fst,slw,bad,ht,rb,er";
+static const char aprsTlmUNIT[]  PROGMEM = "UNIT.V,dBm,Bytes,m,m/s,geo,on,fst,slw,bad,ht,rb,er";
 static const char aprsTlmBITS[]  PROGMEM = "BITS.11111111, ";
 
 // Various constants

@@ -31,11 +31,11 @@
 #define WIFI_FS       ","  // Field separator for WiFi credentials
 
 // Geolocation Settings
-// Get your WiGLE API key from https://wigle.net/
-// Format: "base64encoded_username:password"
-//#define GEO_APIKEY    "USE_YOUR_WIGLE_KEY"
 #define GEO_MAXACC    250  // Maximum acceptable accuracy in meters
 #define GEO_MINACC    50   // Minimum acceptable accuracy in meters
+
+// Get your Google Geolocation API key from https://developers.google.com/maps/documentation/geolocation
+#define GEO_GLS_KEY    "USE_YOUR_GOOGLE_KEY"
 
 // APRS-IS Configuration
 #define APRS_SERVER   "cbaprs.de"  // APRS-IS server
