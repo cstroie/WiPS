@@ -72,14 +72,10 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
   Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection for geolocation testing"));
   #endif
 
-  // Find the BSSID with the highest RSSI
+  // Choose a random BSSID
   int bestIndex = 0;
   if (netCount > 0) {
-    for (int i = 1; i < netCount; i++) {
-      if (nets[i].rssi > nets[bestIndex].rssi) {
-        bestIndex = i;
-      }
-    }
+    bestIndex = random(netCount);
   }
 
   // Build the URL with the best BSSID
