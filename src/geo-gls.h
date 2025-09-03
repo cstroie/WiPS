@@ -1,5 +1,5 @@
 /**
-  geo.h - Mozilla Location Services Geolocation
+  geo-gls.h - Google Location Services Geolocation
          
   This library provides WiFi-based geolocation functionality using
   Mozilla Location Services (MLS) and Google Geolocation API.
@@ -35,10 +35,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GEO_H
-#define GEO_H
-
-#define MAXNETS 32
+#ifndef GLS_H
+#define GLS_H
 
 #include "Arduino.h"
 #ifdef ESP32
@@ -48,16 +46,13 @@
   #include <ESP8266WiFi.h>
 #endif
 #include <WiFiClientSecure.h>
+#include "geo.h"
 #include "config.h"
 
 // Define GeoLocation server
 #define GEO_SERVER    "www.googleapis.com"
 #define GEO_PORT      443
-#ifdef ESP32
-  #define GEO_POST      "POST /geolocation/v1/geolocate?key=" GEO_APIKEY " HTTP/1.1"
-#else
-  #define GEO_POST      "POST /geolocation/v1/geolocate?key=" GEO_APIKEY " HTTP/1.1"
-#endif
+#define GEO_POST      "POST /geolocation/v1/geolocate?key=" GEO_APIKEY " HTTP/1.1"
 
 const char geoServer[]        = GEO_SERVER;
 const int  geoPort            = GEO_PORT;
@@ -66,19 +61,6 @@ const int  geoPort            = GEO_PORT;
 #else
   const char geoPOST[] PROGMEM  = GEO_POST;
 #endif
-const char eol[]     PROGMEM  = "\r\n";
-
-/**
-  Geolocation data structure
-  
-  Stores latitude, longitude, validity flag, and timestamp for a location fix.
-*/
-struct geo_t {
-  float         latitude;   ///< Latitude in decimal degrees
-  float         longitude;  ///< Longitude in decimal degrees
-  bool          valid;      ///< Validity flag indicating successful geolocation
-  unsigned long uptm;       ///< Uptime timestamp when location was acquired
-};
 
 /**
   Geolocation class
@@ -86,25 +68,17 @@ struct geo_t {
   Provides methods for WiFi scanning, geolocation, movement tracking,
   and coordinate conversions.
 */
-class GEO {
+class GLS {
   public:
     /**
-      Constructor - Initialize GEO object with default values
+      Constructor - Initialize GLS object with default values
     */
-    GEO();
+    GLS();
     
     /**
-      Initialize GEO - currently empty but reserved for future use
+      Initialize GLS - currently empty but reserved for future use
     */
     void  init();
-    
-    /**
-      Scan for WiFi networks and collect BSSID/RSSI data
-      
-      @param sort Whether to sort networks by RSSI strength
-      @return Number of networks found and stored
-    */
-    int   wifiScan(bool sort);
     
     /**
       Perform geolocation using collected WiFi data
@@ -114,81 +88,9 @@ class GEO {
       
       @return Accuracy in meters, or -1 on error
     */
-    int   geoLocation();
+    int   geoLocation(nets_t* nets, geo_t* location);
     
-    /**
-      Calculate movement between current and previous locations
-      
-      Computes distance, speed, and bearing between locations.
-      Updates distance, speed, knots, and bearing member variables.
-      
-      @return Distance in meters, or -1 if locations invalid
-    */
-    long  getMovement();
-    
-    /**
-      Calculate great-circle distance between two coordinates
-      
-      Uses haversine formula for spherical distance calculation.
-      
-      @param lat1 Latitude of first point in decimal degrees
-      @param long1 Longitude of first point in decimal degrees
-      @param lat2 Latitude of second point in decimal degrees
-      @param long2 Longitude of second point in decimal degrees
-      @return Distance in meters
-    */
-    float getDistance(float lat1, float long1, float lat2, float long2);
-    
-    /**
-      Calculate initial bearing between two coordinates
-      
-      Computes forward azimuth using spherical trigonometry.
-      
-      @param lat1 Latitude of first point in decimal degrees
-      @param long1 Longitude of first point in decimal degrees
-      @param lat2 Latitude of second point in decimal degrees
-      @param long2 Longitude of second point in decimal degrees
-      @return Bearing in degrees (0-359)
-    */
-    int   getBearing(float lat1, float long1, float lat2, float long2);
-    
-    /**
-      Convert bearing to cardinal direction abbreviation
-      
-      Maps bearing degrees to 16-point compass direction.
-      
-      @param course Bearing in degrees (0-359)
-      @return Pointer to cardinal direction string (N, NNE, NE, etc.)
-    */
-    const char* getCardinal(int course);
-    
-    /**
-      Convert latitude/longitude to Maidenhead grid locator
-      
-      Calculates 6-character Maidenhead locator (e.g., "KN97bd").
-      
-      @param lat Latitude in decimal degrees
-      @param lng Longitude in decimal degrees
-    */
-    void  getLocator(float lat, float lng);
-    
-    geo_t current;    ///< Current location data
-    geo_t previous;   ///< Previous location data
-    char  locator[7]; ///< Maidenhead locator (6 chars + null terminator)
-    int   distance;   ///< Distance traveled since last location (meters)
-    float speed;      ///< Speed in meters/second
-    int   knots;      ///< Speed in knots (rounded)
-    int   bearing;    ///< Bearing in degrees from previous location
-    int   netCount;   ///< Number of WiFi networks found in last scan
-
   private:
-    /**
-      Internal structure for storing WiFi network data
-    */
-    struct BSSID_RSSI {
-      uint8_t bssid[WL_MAC_ADDR_LENGTH];  ///< MAC address of access point
-      int8_t  rssi;                       ///< Signal strength in dBm
-    } nets[MAXNETS];  ///< Array of network data
 };
 
-#endif /* GEO_H */
+#endif /* GLS_H */

@@ -81,6 +81,15 @@ struct geo_t {
 };
 
 /**
+  Structure for storing WiFi network data
+*/
+struct nets_t {
+  uint8_t bssid[WL_MAC_ADDR_LENGTH];  ///< MAC address of access point
+  int8_t  rssi;                       ///< Signal strength in dBm
+};
+
+
+/**
   Geolocation class
   
   Provides methods for WiFi scanning, geolocation, movement tracking,
@@ -185,10 +194,7 @@ class GEO {
     /**
       Internal structure for storing WiFi network data
     */
-    struct BSSID_RSSI {
-      uint8_t bssid[WL_MAC_ADDR_LENGTH];  ///< MAC address of access point
-      int8_t  rssi;                       ///< Signal strength in dBm
-    } nets[MAXNETS];  ///< Array of network data
+    nets_t nets[MAXNETS];  ///< Array of network data
 };
 
 #endif /* GEO_H */

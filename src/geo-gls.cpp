@@ -1,6 +1,6 @@
 /**
-  geo.cpp - Mozilla Location Services Geolocation
-         
+  geo-gls.cpp - Google Location Services Geolocation
+
   Implementation of WiFi-based geolocation using Mozilla Location Services
   and Google Geolocation API. Handles WiFi scanning, HTTPS communication,
   JSON parsing, and coordinate calculations.
@@ -22,76 +22,13 @@
 */
 
 #include "Arduino.h"
-#include "geo.h"
+#include "geo-gls.h"
 #include "platform.h"
 
-GEO::GEO() {
+GLS::GLS() {
 }
 
-void GEO::init() {
-}
-
-/**
-  Scan for WiFi networks and collect BSSID/RSSI data from surrounding access points
-  
-  This function performs a WiFi network scan and stores the BSSID (MAC address)
-  and RSSI (signal strength) of each detected network, excluding the currently
-  connected access point to avoid biasing the geolocation.
-  
-  @param sort Whether to sort networks by RSSI strength (strongest first)
-  @return Number of networks stored (excluding current AP)
-*/
-int GEO::wifiScan(bool sort) {
-  // Keep the AP BSSID to exclude it from results
-  uint8_t apBSSID[WL_MAC_ADDR_LENGTH];
-  memcpy(apBSSID, WiFi.BSSID(), WL_MAC_ADDR_LENGTH);
-  
-  // Perform the WiFi scan
-  netCount = WiFi.scanNetworks();
-  
-  // Keep only BSSID and RSSI, up to MAXNETS limit
-  int scanCount = 0, storeCount = 0;
-  
-  // Only if there are any networks found
-  if (netCount > 0) {
-    // Limit to a maximum to prevent buffer overflow
-    while (storeCount < MAXNETS and scanCount < netCount) {
-      // Exclude the current AP BSSID from the list to avoid biasing geolocation
-      if (memcmp(WiFi.BSSID(scanCount), apBSSID, WL_MAC_ADDR_LENGTH) != 0) {
-        // Store the BSSID and RSSI
-        memcpy(nets[storeCount].bssid, WiFi.BSSID(scanCount), WL_MAC_ADDR_LENGTH);
-        nets[storeCount].rssi = (int8_t)(WiFi.RSSI(scanCount));
-        storeCount++;
-      }
-      scanCount++;
-    }
-  }
-  
-  // Clear the scan results to free memory
-  WiFi.scanDelete();
-  
-  // Update the network count to reflect stored networks
-  netCount = storeCount;
-  
-  // Sort networks by RSSI strength if requested (strongest first)
-  if (sort) {
-    // Bubble sort implementation for RSSI descending order
-    BSSID_RSSI tmp;
-    for (size_t i = 1; i < netCount; i++) {
-      for (size_t j = i; j > 0 && (nets[j - 1].rssi < nets[j].rssi); j--) {
-        // Swap network entries
-        memcpy(tmp.bssid, nets[j - 1].bssid, WL_MAC_ADDR_LENGTH);
-        tmp.rssi = nets[j - 1].rssi;
-        memcpy(nets[j - 1].bssid, nets[j].bssid, WL_MAC_ADDR_LENGTH);
-        nets[j - 1].rssi = nets[j].rssi;
-        memcpy(nets[j].bssid, tmp.bssid, WL_MAC_ADDR_LENGTH);
-        nets[j].rssi = tmp.rssi;
-      }
-    }
-  }
-  
-  // Return the number of networks stored
-  return netCount;
+void GLS::init() {
 }
 
 /**
@@ -110,11 +47,13 @@ int GEO::wifiScan(bool sort) {
   
   @return Accuracy in meters if successful, negative error code on failure
 */
-int GEO::geoLocation() {
+int GLS::geoLocation(nets_t* nets, geo_t* location) {
   int   err = -1;      // Error code
   int   acc = -1;      // Accuracy in meters
   float lat = 0.0;     // Latitude
   float lng = 0.0;     // Longitude
+
+  int netCount = sizeof(nets)/sizeof(nets[0]);
 
   // Create the secure WiFi client for HTTPS communication
   WiFiClientSecure geoClient;
@@ -296,33 +235,19 @@ int GEO::geoLocation() {
     // Close the HTTPS connection
     geoClient.stop();
 
-    // Invalidate previous coordinates if they're too old (over 1 hour)
-    if (now - previous.uptm > 3600000UL) previous.valid = false;
-
     // Validate the received location data
     if (acc >= 0 and acc <= GEO_MAXACC) {
       // Valid location with acceptable accuracy
       
-      // If we already had a valid location, save it as previous
-      if (current.valid) {
-        previous.valid      = current.valid;
-        previous.latitude   = current.latitude;
-        previous.longitude  = current.longitude;
-        previous.uptm       = current.uptm;
-      }
-      
       // Store the new location data
-      current.valid     = true;
-      current.latitude  = lat;
-      current.longitude = lng;
-      current.uptm      = now;
-      
-      // Calculate and store the Maidenhead locator for this location
-      getLocator(current.latitude, current.longitude);
+      temp.valid     = true;
+      temp.latitude  = lat;
+      temp.longitude = lng;
+      temp.uptm      = now;
     }
     else {
       // Invalid or inaccurate location data
-      current.valid = false;
+      temp.valid = false;
     }
   }
 
@@ -331,190 +256,4 @@ int GEO::geoLocation() {
 
   // Return the accuracy in meters (positive) or error code (negative)
   return acc;
-}
-
-/**
-  Calculate movement metrics between current and previous locations
-  
-  Computes the distance traveled, speed, and bearing between the previous
-  and current location fixes. Updates internal member variables for:
-  - distance (meters)
-  - speed (meters/second)
-  - knots (knots, rounded)
-  - bearing (degrees from previous to current location)
-  
-  This function should be called after a successful geolocation to determine
-  if the device has moved and in what direction/speed.
-  
-  @return Distance traveled in meters
-*/
-long GEO::getMovement() {
-  // Check if both current and previous geolocations are valid
-  if (current.valid and previous.valid) {
-    // Compute the great-circle distance between locations using haversine formula
-    distance = getDistance(previous.latitude, previous.longitude, current.latitude, current.longitude);
-    
-    // Calculate speed in meters/second
-    // Time difference is in milliseconds, so multiply by 1000 to convert to seconds
-    speed = 1000.0 * distance / (current.uptm - previous.uptm);
-    
-    // Convert speed to knots (1 knot = 0.514444 m/s)
-    knots = lround(speed * 1.94384449);
-    
-    // If moving (non-zero speed), calculate the bearing from previous to current location
-    if (knots > 0) {
-      bearing = getBearing(previous.latitude, previous.longitude, current.latitude, current.longitude);
-    }
-  }
-  else {
-    // Invalid coordinates - set default values for stationary state
-    distance = 0;
-    speed    = 0.0;
-    knots    = 0;
-    bearing  = -1;  // Invalid bearing indicator
-  }
-  
-  // Return the distance traveled
-  return (long)distance;
-}
-
-/**
-  Calculate great-circle distance between two coordinates using haversine formula
-  
-  Uses the haversine formula to compute the shortest distance between two points
-  on a sphere (Earth). The Earth's radius is assumed to be 6372795 meters.
-  
-  Formula: a = sin²(Δφ/2) + cos φ1 ⋅ cos φ2 ⋅ sin²(Δλ/2)
-           c = 2 ⋅ atan2( √a, √(1−a) )
-           d = R ⋅ c
-  
-  @param lat1 Latitude of first point in decimal degrees
-  @param long1 Longitude of first point in decimal degrees
-  @param lat2 Latitude of second point in decimal degrees
-  @param long2 Longitude of second point in decimal degrees
-  @return Distance in meters
-*/
-float GEO::getDistance(float lat1, float long1, float lat2, float long2) {
-  // Convert longitude difference to radians
-  float delta = radians(long1 - long2);
-  float sdlong = sin(delta);
-  float cdlong = cos(delta);
-  
-  // Convert latitudes to radians
-  lat1 = radians(lat1);
-  lat2 = radians(lat2);
-  float slat1 = sin(lat1);
-  float clat1 = cos(lat1);
-  float slat2 = sin(lat2);
-  float clat2 = cos(lat2);
-  
-  // Haversine formula calculations for great-circle distance
-  delta = (clat1 * slat2) - (slat1 * clat2 * cdlong);
-  delta = sq(delta);
-  delta += sq(clat2 * sdlong);
-  delta = sqrt(delta);
-  float denom = (slat1 * slat2) + (clat1 * clat2 * cdlong);
-  delta = atan2(delta, denom);
-  
-  // Multiply by Earth's radius in meters (6372795m for WGS84 sphere approximation)
-  return delta * 6372795;
-}
-
-/**
-  Calculate initial bearing (forward azimuth) between two coordinates
-  
-  Computes the initial bearing (forward azimuth) from point 1 to point 2
-  using spherical trigonometry. The result is normalized to 0-359 degrees.
-  
-  Formula: θ = atan2( sin(Δλ) ⋅ cos(φ2), cos(φ1) ⋅ sin(φ2) − sin(φ1) ⋅ cos(φ2) ⋅ cos(Δλ) )
-  
-  @param lat1 Latitude of first point in decimal degrees
-  @param long1 Longitude of first point in decimal degrees
-  @param lat2 Latitude of second point in decimal degrees
-  @param long2 Longitude of second point in decimal degrees
-  @return Bearing in degrees (0-359)
-*/
-int GEO::getBearing(float lat1, float long1, float lat2, float long2) {
-  // Convert coordinate differences to radians
-  float dlon = radians(long2 - long1);
-  lat1 = radians(lat1);
-  lat2 = radians(lat2);
-  
-  // Spherical trigonometry calculations for bearing
-  float a1 = sin(dlon) * cos(lat2);
-  float a2 = sin(lat1) * cos(lat2) * cos(dlon);
-  a2 = cos(lat1) * sin(lat2) - a2;
-  a2 = atan2(a1, a2);
-  
-  // Convert radians to degrees and normalize to 0-359 range
-  return (int)(degrees(a2) + 360) % 360;
-}
-
-/**
-  Convert bearing in degrees to 16-point compass direction abbreviation
-  
-  Maps a bearing angle (0-359 degrees) to the corresponding 16-point
-  compass direction (N, NNE, NE, ENE, E, etc.).
-  
-  The 16 directions are spaced every 22.5 degrees (360/16), with
-  the first sector (N) centered at 0/360 degrees.
-  
-  @param course Bearing in degrees (0-359)
-  @return Pointer to cardinal direction string
-*/
-const char* GEO::getCardinal(int course) {
-  // 16-point compass directions in order
-  static const char* directions[] = {"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-                                     "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
-                                    };
-  
-  // Map course to direction index (each sector is 22.5 degrees)
-  // Add 11.25 (half sector) to center the ranges properly
-  int direction = (int)(((float)course + 11.25f) / 22.5f);
-  
-  // Return the direction string (wrap around for 360 degrees)
-  return directions[direction % 16];
-}
-
-/**
-  Convert latitude/longitude coordinates to 6-character Maidenhead grid locator
-  
-  Calculates the Maidenhead locator (QRA locator) for given coordinates.
-  The locator system divides the world into nested grids:
-  - First pair (A-Z): 20° longitude × 10° latitude fields
-  - Second pair (0-9): 2° longitude × 1° latitude squares
-  - Third pair (a-x): 5' longitude × 2.5' latitude subsquares
-  
-  @param lat Latitude in decimal degrees (-90 to +90)
-  @param lng Longitude in decimal degrees (-180 to +180)
-*/
-void GEO::getLocator(float lat, float lng) {
-  int o1, o2, o3;  // Longitude field, square, subsquare
-  int a1, a2, a3;  // Latitude field, square, subsquare
-  float rem;       // Remainder for calculations
-
-  // Calculate longitude components
-  rem = lng + 180.0;           // Normalize to 0-360 range
-  o1 = (int)(rem / 20.0);      // Field (20° divisions: A-Z)
-  rem = rem - (float)o1 * 20.0;
-  o2 = (int)(rem / 2.0);       // Square (2° divisions: 0-9)
-  rem = rem - 2.0 * (float)o2;
-  o3 = (int)(12.0 * rem);      // Subsquare (5' divisions: a-x)
-
-  // Calculate latitude components
-  rem = lat + 90.0;            // Normalize to 0-180 range
-  a1 = (int)(rem / 10.0);      // Field (10° divisions: A-Z)
-  rem = rem - (float)a1 * 10.0;
-  a2 = (int)(rem);             // Square (1° divisions: 0-9)
-  rem = rem - (float)a2;
-  a3 = (int)(24.0 * rem);      // Subsquare (2.5' divisions: a-x)
-
-  // Create the 6-character locator string
-  locator[0] = (char)o1 + 'A';  // Longitude field (A-Z)
-  locator[1] = (char)a1 + 'A';  // Latitude field (A-Z)
-  locator[2] = (char)o2 + '0';  // Longitude square (0-9)
-  locator[3] = (char)a2 + '0';  // Latitude square (0-9)
-  locator[4] = (char)o3 + 'a';  // Longitude subsquare (a-x)
-  locator[5] = (char)a3 + 'a';  // Latitude subsquare (a-x)
-  locator[6] = (char)0;         // Null terminator
 }
