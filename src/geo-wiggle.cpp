@@ -24,6 +24,7 @@
 #include "Arduino.h"
 #include "geo-wiggle.h"
 #include "platform.h"
+#include <HTTPClient.h>
 
 // End of line string
 static const char eol[]    PROGMEM = "\r\n";
@@ -57,9 +58,9 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
   float lat = 0.0;     // Latitude
   float lng = 0.0;     // Longitude
 
-  // Create the secure WiFi client for HTTPS communication
+  // Create the secure HTTPS client
+  HTTPClient https;
   WiFiClientSecure geoClient;
-  geoClient.setTimeout(5000);
   
   // Set up authentication - assuming GEO_APIKEY is defined in config
   #ifdef GEO_INSECURE
@@ -67,147 +68,103 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
   Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection for geolocation testing"));
   #endif
 
-  // Try to connect to the geolocation server
-  if (geoClient.connect(geoServer, geoPort)) {
-    // Local buffer for HTTP request construction
-    const int bufSize = 250;
-    char buf[bufSize] = "";
-  
-    // Record the current time for location timestamp
-    unsigned long now = millis();
-
-    // Send HTTP request headers for ESP8266 and ESP32
-    // Request line with query parameters
-    strcpy_P(buf, PSTR("GET /api/v2/network/search?"));
-    // Build the query parameters for the BSSID with highest RSSI (Wigle API searches by netid/BSSID)
-    if (netCount > 0) {
-      // Find the BSSID with the highest RSSI
-      int bestIndex = 0;
-      for (int i = 1; i < netCount; i++) {
-        if (nets[i].rssi > nets[bestIndex].rssi) {
-          bestIndex = i;
-        }
+  // Find the BSSID with the highest RSSI
+  int bestIndex = 0;
+  if (netCount > 0) {
+    for (int i = 1; i < netCount; i++) {
+      if (nets[i].rssi > nets[bestIndex].rssi) {
+        bestIndex = i;
       }
-      
-      char bssidParam[50];
-      strcpy_P(bssidParam, PSTR("netid="));
-      // Convert best BSSID to hex string format
-      char bssidStr[18];
-      uint8_t* bss = nets[bestIndex].bssid;
-      snprintf(bssidStr, sizeof(bssidStr), "%02X:%02X:%02X:%02X:%02X:%02X",
-               bss[0], bss[1], bss[2], bss[3], bss[4], bss[5]);
-      strcat(bssidParam, bssidStr);
-      strcat(buf, bssidParam);
     }
-    strcat_P(buf, PSTR(" HTTP/1.1"));
-    strcat_P(buf, eol);
-    yield();
+  }
 
-    // Host header
-    strcpy_P(buf, PSTR("Host: "));
-    strcat(buf, geoServer);
-    strcat_P(buf, eol);
-    geoClient.print(buf);
-    yield();
+  // Build the URL with the best BSSID
+  char url[200];
+  if (netCount > 0) {
+    char bssidStr[18];
+    uint8_t* bss = nets[bestIndex].bssid;
+    snprintf(bssidStr, sizeof(bssidStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+             bss[0], bss[1], bss[2], bss[3], bss[4], bss[5]);
+    snprintf_P(url, sizeof(url), PSTR("https://%s/api/v2/network/search?netid=%s"), geoServer, bssidStr);
+  } else {
+    snprintf_P(url, sizeof(url), PSTR("https://%s/api/v2/network/search"), geoServer);
+  }
+
+  // Begin the HTTPS request
+  https.begin(geoClient, url);
   
-    // Authorization header - Basic auth with API key
-    strcpy_P(buf, PSTR("Authorization: Basic "));
-    strcat(buf, GEO_WIGGLE_KEY);
-    strcat_P(buf, eol);
-    geoClient.print(buf);
-    yield();
+  // Set headers
+  https.addHeader("Authorization", "Basic " + String(GEO_WIGGLE_KEY));
+  https.addHeader("User-Agent", "Arduino-Wigle/0.1");
   
-    // User agent header
-    strcpy_P(buf, PSTR("User-Agent: Arduino-Wigle/0.1"));
-    strcat_P(buf, eol);
-    geoClient.print(buf);
-    yield();
+  // Record the current time for location timestamp
+  unsigned long now = millis();
+
+  // Send HTTP GET request
+  int httpResponseCode = https.GET();
   
-    // Connection header
-    strcpy_P(buf, PSTR("Connection: close"));
-    strcat_P(buf, eol);
-    strcat_P(buf, eol);
-    geoClient.print(buf);
-    yield();
-
-    // Read and process HTTP response headers
-    while (geoClient.connected()) {
-      size_t rlen = geoClient.readBytesUntil('\r', buf, bufSize-1);
-      buf[rlen] = '\0';
-      //Serial.println(buf);
-      if (rlen == 0) break;  // No more data
-      geoClient.read(); // consume the '\n'
-      if (rlen == 1) break;  // Empty line indicates end of headers
-    }
-
-    // Read the entire response body into a buffer
-    const int responseSize = 512;
-    char response[responseSize] = "";
-    int responseLen = 0;
-    
-    while (geoClient.connected() && responseLen < responseSize-1) {
-      if (geoClient.available()) {
-        response[responseLen++] = geoClient.read();
-      }
-      yield();
-    }
-    response[responseLen] = '\0';
-
-    Serial.println(response); // For debugging
+  if (httpResponseCode == HTTP_CODE_OK) {
+    // Get the response payload
+    String response = https.getString();
     
     // Parse the JSON response to extract location data
     bool success = false;
     bool foundResults = false;
     
     // Look for "success" field
-    char* successPtr = strstr(response, "\"success\"");
-    if (successPtr != nullptr) {
-      char* colonPtr = strchr(successPtr, ':');
-      if (colonPtr != nullptr) {
-        success = atoi(colonPtr + 1) == 1;
+    int successIndex = response.indexOf("\"success\"");
+    if (successIndex != -1) {
+      int colonIndex = response.indexOf(":", successIndex);
+      if (colonIndex != -1) {
+        success = response.substring(colonIndex + 1, colonIndex + 2).toInt() == 1;
       }
     }
     
     // Look for "totalResults" field
-    char* totalResultsPtr = strstr(response, "\"totalResults\"");
-    if (totalResultsPtr != nullptr) {
-      char* colonPtr = strchr(totalResultsPtr, ':');
-      if (colonPtr != nullptr) {
-        int totalResults = atoi(colonPtr + 1);
+    int totalResultsIndex = response.indexOf("\"totalResults\"");
+    if (totalResultsIndex != -1) {
+      int colonIndex = response.indexOf(":", totalResultsIndex);
+      if (colonIndex != -1) {
+        int commaIndex = response.indexOf(",", colonIndex);
+        int endIndex = (commaIndex != -1) ? commaIndex : response.length();
+        int totalResults = response.substring(colonIndex + 1, endIndex).toInt();
         foundResults = (totalResults > 0);
       }
     }
     
     // Look for latitude and longitude in the first result
     if (foundResults) {
-      char* trilatPtr = strstr(response, "\"trilat\"");
-      if (trilatPtr != nullptr) {
-        char* colonPtr = strchr(trilatPtr, ':');
-        if (colonPtr != nullptr) {
-          lat = atof(colonPtr + 1);
+      int trilatIndex = response.indexOf("\"trilat\"");
+      if (trilatIndex != -1) {
+        int colonIndex = response.indexOf(":", trilatIndex);
+        if (colonIndex != -1) {
+          int commaIndex = response.indexOf(",", colonIndex);
+          int endIndex = (commaIndex != -1) ? commaIndex : response.length();
+          lat = response.substring(colonIndex + 1, endIndex).toFloat();
         }
       }
       
-      char* trilongPtr = strstr(response, "\"trilong\"");
-      if (trilongPtr != nullptr) {
-        char* colonPtr = strchr(trilongPtr, ':');
-        if (colonPtr != nullptr) {
-          lng = atof(colonPtr + 1);
+      int trilongIndex = response.indexOf("\"trilong\"");
+      if (trilongIndex != -1) {
+        int colonIndex = response.indexOf(":", trilongIndex);
+        if (colonIndex != -1) {
+          int commaIndex = response.indexOf(",", colonIndex);
+          int endIndex = (commaIndex != -1) ? commaIndex : response.length();
+          lng = response.substring(colonIndex + 1, endIndex).toFloat();
         }
       }
       
       // Look for accuracy (using range as proxy for accuracy)
-      char* rangePtr = strstr(response, "\"range\"");
-      if (rangePtr != nullptr) {
-        char* colonPtr = strchr(rangePtr, ':');
-        if (colonPtr != nullptr) {
-          acc = atoi(colonPtr + 1);
+      int rangeIndex = response.indexOf("\"range\"");
+      if (rangeIndex != -1) {
+        int colonIndex = response.indexOf(":", rangeIndex);
+        if (colonIndex != -1) {
+          int commaIndex = response.indexOf(",", colonIndex);
+          int endIndex = (commaIndex != -1) ? commaIndex : response.length();
+          acc = response.substring(colonIndex + 1, endIndex).toInt();
         }
       }
     }
-
-    // Close the HTTPS connection
-    geoClient.stop();
 
     // Validate the received location data
     if (success && foundResults && acc >= 0 && acc <= GEO_MAXACC) {
@@ -226,7 +183,14 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
       else if (!foundResults) err = 2;
       else err = 3;
     }
+  } else {
+    // HTTP request failed
+    loc->valid = false;
+    err = 4;
   }
+
+  // Close the connection
+  https.end();
 
   // Handle error codes - return negative error code if present
   if (err > 0) acc = -err;

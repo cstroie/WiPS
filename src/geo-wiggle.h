@@ -44,6 +44,7 @@
   #include <HTTPClient.h>
 #else
   #include <ESP8266WiFi.h>
+  #include <ESP8266HTTPClient.h>
 #endif
 #include <WiFiClientSecure.h>
 #include "geo.h"
