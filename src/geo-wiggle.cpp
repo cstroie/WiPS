@@ -177,6 +177,14 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
       loc->longitude = lng;
       loc->uptm      = now;
     }
+    else if (success && !foundResults && loc->valid) {
+      // No results found but we have a previous valid location
+      // Keep the previous location data
+      loc->valid     = true;
+      // lat and lng already contain previous values
+      loc->uptm      = now;
+      acc = 1; // Set accuracy to 1
+    }
     else {
       // Invalid or inaccurate location data
       loc->valid = false;
