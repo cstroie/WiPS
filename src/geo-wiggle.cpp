@@ -57,7 +57,9 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
   float lat = 0.0;     // Latitude
   float lng = 0.0;     // Longitude
 
+  // Get the number of networks AI!
   int netCount = sizeof(nets)/sizeof(nets[0]);
+  Serial.println(netCount);
 
   // Create the secure WiFi client for HTTPS communication
   WiFiClientSecure geoClient;
@@ -78,69 +80,10 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
     // Record the current time for location timestamp
     unsigned long now = millis();
 
-    // Build the query parameters for the first BSSID (Wigle API searches by netid/BSSID)
-    if (netCount > 0) {
-      strcpy_P(buf, PSTR("netid="));
-      
-      // Convert first BSSID to hex string format
-      char bssidStr[18];  // MAC address format: XX:XX:XX:XX:XX:XX
-      uint8_t* bss = nets[0].bssid;
-      snprintf(bssidStr, sizeof(bssidStr), "%02X:%02X:%02X:%02X:%02X:%02X",
-               bss[0], bss[1], bss[2], bss[3], bss[4], bss[5]);
-      
-      strcat(buf, bssidStr);
-    }
-
-  #ifdef ESP32
-    // Send HTTP request headers for ESP32
-    // Request line with query parameters
-    strcpy(buf, "GET /api/v2/network/search?");
-    if (netCount > 0) {
-      char bssidParam[50];
-      strcpy_P(bssidParam, PSTR("netid="));
-      // Convert first BSSID to hex string format
-      char bssidStr[18];
-      uint8_t* bss = nets[0].bssid;
-      snprintf(bssidStr, sizeof(bssidStr), "%02X:%02X:%02X:%02X:%02X:%02X",
-               bss[0], bss[1], bss[2], bss[3], bss[4], bss[5]);
-      strcat(bssidParam, bssidStr);
-      strcat(buf, bssidParam);
-    }
-    strcat(buf, " HTTP/1.1");
-    strcat(buf, eol);
-    geoClient.print(buf);
-    yield();
-  
-    // Host header
-    strcpy(buf, "Host: ");
-    strcat(buf, geoServer);
-    strcat(buf, eol);
-    geoClient.print(buf);
-    yield();
-  
-    // Authorization header - Basic auth with API key
-    strcpy(buf, "Authorization: Basic ");
-    strcat(buf, GEO_APIKEY);
-    strcat(buf, eol);
-    geoClient.print(buf);
-    yield();
-  
-    // User agent header
-    strcpy(buf, "User-Agent: Arduino-Wigle/0.1");
-    strcat(buf, eol);
-    geoClient.print(buf);
-    yield();
-  
-    // Connection header
-    strcpy(buf, "Connection: close");
-    strcat(buf, eol);
-    strcat(buf, eol);
-    geoClient.print(buf);
-    yield();
-  #else
-    // Send HTTP request headers for ESP8266
+    // Send HTTP request headers for ESP8266 and ESP32
     // Request line with query parameters
     strcpy_P(buf, PSTR("GET /api/v2/network/search?"));
+    // Build the query parameters for the first BSSID (Wigle API searches by netid/BSSID)
     if (netCount > 0) {
       char bssidParam[50];
       strcpy_P(bssidParam, PSTR("netid="));
@@ -166,7 +109,7 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
   
     // Authorization header - Basic auth with API key
     strcpy_P(buf, PSTR("Authorization: Basic "));
-    strcat(buf, GEO_APIKEY);
+    strcat(buf, GEO_WIGGLE_KEY);
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();
@@ -183,12 +126,14 @@ int WIGGLE::geoLocation(nets_t* nets, geo_t* loc) {
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();
-  #endif
+
+    Serial.println(buf);
 
     // Read and process HTTP response headers
     while (geoClient.connected()) {
-      int rlen = geoClient.readBytesUntil('\r', buf, bufSize);
+      size_t rlen = geoClient.readBytesUntil('\r', buf, bufSize);
       buf[rlen] = '\0';
+      Serial.println(buf);
       if (rlen == 1) break;  // Empty line indicates end of headers
     }
 
