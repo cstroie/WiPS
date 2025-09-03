@@ -31,8 +31,8 @@
 #define WIFI_FS       ","  // Field separator for WiFi credentials
 
 // Geolocation Settings
-// Get your Google Geolocation API key from https://developers.google.com/maps/documentation/geolocation
-#define GEO_APIKEY    "USE_YOUR_GOOGLE_KEY"
+// Get your Mozilla Location Services API key from https://location.services.mozilla.com/
+#define GEO_APIKEY    "USE_YOUR_MLS_KEY"
 #define GEO_MAXACC    250  // Maximum acceptable accuracy in meters
 #define GEO_MINACC    50   // Minimum acceptable accuracy in meters
 
