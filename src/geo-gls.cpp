@@ -170,7 +170,7 @@ int GLS::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
     geoClient.print(buf);
     
     // Add each detected WiFi network's data
-    for (size_t i = 0; i < netCount; ++i) {
+    for (int i = 0; i < netCount; ++i) {
       char sbuf[4] = "";
       
       // Start network object with MAC address

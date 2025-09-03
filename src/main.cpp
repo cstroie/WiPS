@@ -381,7 +381,7 @@ bool wifiTryKnownNetworks() {
     int netCount = WiFi.scanNetworks();
     if (netCount > 0) {
       Serial.printf_P(PSTR("$SWIFI,CNT,%d\r\n"), netCount);
-      for (size_t i = 0; i < netCount; i++)
+      for (int i = 0; i < netCount; i++)
         Serial.printf_P(PSTR("$SWIFI,%d,%d,%d,%s,%s\r\n"),
                         i + 1,
                         WiFi.channel(i),
@@ -416,7 +416,7 @@ bool wifiTryKnownNetworks() {
             strncpy(ssid, f1, fs - f1); ssid[fs - f1] = 0;
             strncpy(pass, f2, rs - f2); pass[rs - f2] = 0;
             // Check if we know any network
-            for (size_t i = 0; i < netCount; i++) {
+            for (int i = 0; i < netCount; i++) {
               // Check if we the SSID match
               if ((strncmp(ssid, WiFi.SSID(i).c_str(), WL_SSID_MAX_LENGTH) == 0) and
                   (strlen(ssid) == strlen(WiFi.SSID(i).c_str()))) {
@@ -461,7 +461,7 @@ bool wifiTryKnownNetworks() {
             strncpy(ssid, f1, fs - f1); ssid[fs - f1] = 0;
             strncpy(pass, f2, rs - f2); pass[rs - f2] = 0;
             // Try all the networks
-            for (size_t i = 0; i < netCount; i++) {
+            for (int i = 0; i < netCount; i++) {
               // Try to connect to wifi
               if (wifiTryConnect(WiFi.SSID(i).c_str(), pass)) {
                 result = true;
@@ -501,7 +501,7 @@ bool wifiTryOpenNetworks() {
   int netCount = WiFi.scanNetworks();
   if (netCount > 0) {
     char ssid[WL_SSID_MAX_LENGTH] = "";
-    for (size_t i = 1; i < netCount; i++) {
+    for (int i = 1; i < netCount; i++) {
       // Find the open networks
       if (WiFi.encryptionType(i) == ENC_TYPE_NONE) {
         // Keep the SSID
