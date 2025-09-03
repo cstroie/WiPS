@@ -35,11 +35,11 @@
 #define GEO_MINACC    50   // Minimum acceptable accuracy in meters
 
 // Get your Google Geolocation API key from https://developers.google.com/maps/documentation/geolocation
-#define GEO_GLS_KEY    "USE_YOUR_GOOGLE_KEY"
+//#define GEO_GLS_KEY    "USE_YOUR_GOOGLE_KEY"
 
 // Get your WiGLE API key from https://wigle.net/
 // Format: "base64encoded_username:password"
-//#define GEO_WIGGLE_KEY    "USE_YOUR_WIGGLE_KEY"
+#define GEO_WIGGLE_KEY    "USE_YOUR_WIGGLE_KEY"
 
 // APRS-IS Configuration
 #define APRS_SERVER   "cbaprs.de"  // APRS-IS server
