@@ -125,7 +125,7 @@ nmeaReports nmeaReport = {1, 1, 0, 0, 0};
 #ifdef ESP32
 U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(/* clock=*/ 16, /* data=*/ 17, /* reset=*/ U8X8_PIN_NONE);
 #else
-U8X8_SSD128X32_UNIVISION_HW_I2C u8x8(16);
+U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8(16);
 #endif
 #endif
 
