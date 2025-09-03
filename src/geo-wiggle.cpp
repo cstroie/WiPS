@@ -110,6 +110,8 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
   if (httpResponseCode == HTTP_CODE_OK) {
     // Get the response payload
     String response = https.getString();
+
+    Serial.println(response); // For debugging
     
     // Parse the JSON response to extract location data
     bool success = false;
