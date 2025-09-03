@@ -2,7 +2,7 @@
   WiPS - Wireless Positioning System and Automated Position Reporting System
          based on Wifi geolocation, using Mozilla Location Services.
 
-  Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2023 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 bool PROBE = true;
 
 // Led
-#define LED 2
+#define LED LED_BUILTIN
 
 // User settings
 #include "config.h"
@@ -78,7 +78,7 @@ struct nmeaReports {
   bool vtg: 1;
   bool zda: 1;
 };
-nmeaReports nmeaReport = {1, 1, 0, 0, 0};
+nmeaReports nmeaReport = {1, 1, 1, 1, 1};
 
 #ifdef HAVE_OLED
 // OLED
@@ -106,7 +106,7 @@ int sCrs = -1;
 /**
   Convert IPAddress to char array
 */
-char charIP(const IPAddress ip, char *buf, size_t len, boolean pad = false) {
+void charIP(const IPAddress ip, char *buf, size_t len, boolean pad = false) {
   if (pad) snprintf_P(buf, len, PSTR("%3d.%3d.%3d.%3d"), ip[0], ip[1], ip[2], ip[3]);
   else     snprintf_P(buf, len, PSTR("%d.%d.%d.%d"),     ip[0], ip[1], ip[2], ip[3]);
 }
@@ -150,8 +150,9 @@ void showWiFi() {
   Turn the built-in led on, analog
 */
 void setLED(int load) {
-  int level = (1 << load) - 1;
-  analogWrite(LED, PWMRANGE - level);
+  //int level = (1 << load) - 1;
+  int level = map(load, 0, 10, 255, 0);
+  analogWrite(LED, level);
 }
 
 /**
@@ -268,7 +269,7 @@ bool wifiTryConnect(const char* ssid = NULL, const char* pass = NULL, int timeou
   // Check the internet connection
   if (WiFi.isConnected()) {
     showWiFi();
-    result = wifiCheckHTTP(GEO_SERVER, GEO_PORT);
+    result = wifiCheckHTTP((char*)geoServer, geoPort);
     //result = (mls.geoLocation() >= 0);
     if (!result)
       Serial.printf_P(PSTR("$PWIFI,ERR,%s\r\n"), _ssid);

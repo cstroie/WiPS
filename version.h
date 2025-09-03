@@ -1,7 +1,7 @@
 /**
   version.h
 
-  Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2023 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,6 @@
 // Device specific constants
 const char NODENAME[] = "WiPS";
 const char nodename[] = "wips";
-const char VERSION[]  = "0.3.20";
+const char VERSION[]  = "0.3.22";
 
 #endif /* VERSION_H */

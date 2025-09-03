@@ -1,7 +1,7 @@
 /**
   aprs.h - Automated Position Reporting System
 
-  Copyright (c) 2017-2020 Costin STROIE <costinstroie@eridu.eu.org>
+  Copyright (c) 2017-2023 Costin STROIE <costinstroie@eridu.eu.org>
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include "version.h"
 
 // APRS constants
-const char aprsPath[]     PROGMEM = ">WIDE1-1,TCPIP*:";
+const char aprsPath[]     PROGMEM = ">APEWPS,TCPIP*:";
 const char aprsTlmPARM[]  PROGMEM = "PARM.Vcc,RSSI,Heap,Acc,Spd,PROBE,FIX,FST,SLW,VCC,HT,RB,TM";
 const char aprsTlmEQNS[]  PROGMEM = "EQNS.0,0.004,2.5,0,-1,0,0,256,0,0,1,0,0.0008,0,0";
 const char aprsTlmUNIT[]  PROGMEM = "UNIT.V,dBm,Bytes,m,m/s,prb,on,fst,slw,bad,ht,rb,er";
