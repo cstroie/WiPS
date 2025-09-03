@@ -100,7 +100,7 @@ class GEO {
     /**
       Perform geolocation using collected WiFi data
       
-      Sends BSSID/RSSI data to geolocation service and parses response
+      Sends a randomly selected BSSID to geolocation service and parses response
       to extract latitude, longitude, and accuracy.
       
       @return Accuracy in meters, or -1 on error

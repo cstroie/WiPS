@@ -84,9 +84,12 @@ class WIGGLE {
     /**
       Perform geolocation using collected WiFi data
       
-      Sends BSSID/RSSI data to geolocation service and parses response
+      Sends a randomly selected BSSID to geolocation service and parses response
       to extract latitude, longitude, and accuracy.
       
+      @param loc Pointer to geo_t structure to store location data
+      @param nets Array of WiFi networks with BSSID and RSSI
+      @param netCount Number of networks in the array
       @return Accuracy in meters, or -1 on error
     */
     int   geoLocation(geo_t* loc, nets_t* nets, int netCount);
