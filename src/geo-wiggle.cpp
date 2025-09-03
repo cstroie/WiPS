@@ -122,7 +122,8 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
     if (successIndex != -1) {
       int colonIndex = response.indexOf(":", successIndex);
       if (colonIndex != -1) {
-        success = response.substring(colonIndex + 1, colonIndex + 2).toInt() == 1;
+        // Check if the value is "true"
+        success = (response.substring(colonIndex + 1, colonIndex + 5) == "true");
       }
     }
     
