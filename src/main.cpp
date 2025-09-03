@@ -483,10 +483,9 @@ bool wifiTryKnownNetworks() {
 #endif
     }
   }
+#endif
   // Clear the scan results
   WiFi.scanDelete();
-  }
-#endif
   // Return the result
   return result;
 }
