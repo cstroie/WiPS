@@ -125,7 +125,7 @@ int MLS::geoLocation() {
   
   // Only use setInsecure() if GEO_APIKEY is not properly configured (for testing only)
   #ifdef GEO_INSECURE
-  if (strcmp(GEO_SERVER, "location.services.mozilla.com") == 0 && 
+  if (strcmp(GEO_SERVER, "api.wigle.net") == 0 && 
       strcmp(GEO_APIKEY, "USE_YOUR_MLS_KEY") == 0) {
     geoClient.setInsecure();
     Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection for geolocation testing"));
@@ -156,8 +156,21 @@ int MLS::geoLocation() {
     geoClient.print(buf);
     yield();
   
+    // Authorization header (Basic Auth with API key)
+    strcpy(buf, "Authorization: Basic ");
+    strcat(buf, GEO_APIKEY);
+    strcat(buf, eol);
+    geoClient.print(buf);
+    yield();
+  
+    // Accept header
+    strcpy(buf, "Accept: application/json");
+    strcat(buf, eol);
+    geoClient.print(buf);
+    yield();
+  
     // User agent header
-    strcpy(buf, "User-Agent: Arduino-MLS/0.1");
+    strcpy(buf, "User-Agent: Arduino-WiGLE/0.1");
     strcat(buf, eol);
     geoClient.print(buf);
     yield();
@@ -199,8 +212,21 @@ int MLS::geoLocation() {
     geoClient.print(buf);
     yield();
   
+    // Authorization header (Basic Auth with API key)
+    strcpy_P(buf, PSTR("Authorization: Basic "));
+    strcat(buf, GEO_APIKEY);
+    strcat_P(buf, eol);
+    geoClient.print(buf);
+    yield();
+  
+    // Accept header
+    strcpy_P(buf, PSTR("Accept: application/json"));
+    strcat_P(buf, eol);
+    geoClient.print(buf);
+    yield();
+  
     // User agent header
-    strcpy_P(buf, PSTR("User-Agent: Arduino-MLS/0.1"));
+    strcpy_P(buf, PSTR("User-Agent: Arduino-WiGLE/0.1"));
     strcat_P(buf, eol);
     geoClient.print(buf);
     yield();

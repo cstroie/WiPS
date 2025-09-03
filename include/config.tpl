@@ -31,8 +31,9 @@
 #define WIFI_FS       ","  // Field separator for WiFi credentials
 
 // Geolocation Settings
-// Get your Mozilla Location Services API key from https://location.services.mozilla.com/
-#define GEO_APIKEY    "USE_YOUR_MLS_KEY"
+// Get your WiGLE API key from https://wigle.net/
+// Format: "base64encoded_username:password"
+#define GEO_APIKEY    "USE_YOUR_WIGLE_KEY"
 #define GEO_MAXACC    250  // Maximum acceptable accuracy in meters
 #define GEO_MINACC    50   // Minimum acceptable accuracy in meters
 
