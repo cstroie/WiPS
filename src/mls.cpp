@@ -25,6 +25,9 @@
 #include "mls.h"
 #include "platform.h"
 
+// End of line string
+const char eol[]     PROGMEM  = "\r\n";
+
 MLS::MLS() {
 }
 

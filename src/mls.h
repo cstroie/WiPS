@@ -66,7 +66,6 @@ const int  geoPort            = GEO_PORT;
 #else
   const char geoPOST[] PROGMEM  = GEO_POST;
 #endif
-const char eol[]     PROGMEM  = "\r\n";
 
 /**
   Geolocation data structure

@@ -23,7 +23,8 @@
 #include "Arduino.h"
 #include "aprs.h"
 
-// Use the eol from the header file
+// End of line string
+static const char eol[]    PROGMEM = "\r\n";
 
 /**
   Constructor - Initialize APRS object with default values
@@ -190,7 +191,7 @@ void APRS::setObjectName(const char *object) {
     strncpy(aprsObjectNm, (char*)object, sizeof(aprsObjectNm));
   }
   // Pad with underscores to 9 characters as required by APRS
-  for (int i = strlen(aprsObjectNm); i < sizeof(aprsObjectNm) - 1; i++)
+  for (unsigned int i = strlen(aprsObjectNm); i < sizeof(aprsObjectNm) - 1; i++)
     aprsObjectNm[i] = '_';
   // Make sure it ends with null
   aprsObjectNm[sizeof(aprsObjectNm) - 1] = '\0';
@@ -204,8 +205,8 @@ void APRS::setObjectName(const char *object) {
 */
 bool APRS::send(const char *pkt) {
   bool result;
-  if (result = aprsClient.connected()) {
-    int plen = strlen(pkt);
+  if ((result = aprsClient.connected())) {
+    size_t plen = strlen(pkt);
 #ifndef DEVEL
     // Write the packet and check the number of bytes written
     if (aprsClient.write(pkt) != plen) error = true;
@@ -217,7 +218,7 @@ bool APRS::send(const char *pkt) {
   }
   else
     error = true;
-  return result & (~error);
+  return result & (!error);
 }
 
 /**
