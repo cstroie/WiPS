@@ -43,6 +43,7 @@ bool PROBE = true;
   #define LED 2  // ESP32 default LED pin
 #else
   #define LED 2  // ESP8266 default LED pin
+  #define PWMRANGE 1023  // ESP8266 PWM range
 #endif
 
 // User settings
