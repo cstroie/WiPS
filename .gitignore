@@ -32,3 +32,4 @@
 *.app
 
 config.h
+.aider*
