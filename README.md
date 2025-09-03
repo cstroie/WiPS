@@ -1,6 +1,6 @@
 # WiFi APRS Tracker
 
-An APRS (Automatic Packet Reporting System) tracker using WiFi-based geolocation with Mozilla Location Services (MLS) and Google Geolocation API.
+An APRS (Automatic Packet Reporting System) tracker using WiFi-based geolocation with WiGLE.net API.
 
 ## Overview
 
@@ -8,8 +8,7 @@ This project implements a wireless positioning system that determines location b
 
 ## Features
 
-- **WiFi Geolocation**: Uses nearby WiFi access points for position determination
-- **Multiple Geolocation Services**: Supports both Mozilla Location Services and Google Geolocation API
+- **WiFi Geolocation**: Uses nearby WiFi access points for position determination via WiGLE.net API
 - **NMEA Sentence Generation**: Outputs standard NMEA-0183 sentences for GPS compatibility
 - **APRS Position Reporting**: Sends position reports to APRS-IS with telemetry data
 - **SmartBeaconing**: Adaptive reporting intervals based on movement
@@ -48,7 +47,7 @@ This project implements a wireless positioning system that determines location b
 2. Configure your:
    - WiFi credentials (optional)
    - APRS-IS server and credentials
-   - Google Geolocation API key
+   - WiGLE.net API key
    - NTP server
 
 ## Usage
