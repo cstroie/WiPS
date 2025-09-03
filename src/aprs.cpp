@@ -91,7 +91,9 @@ bool APRS::connect() {
   #ifndef APRS_INSECURE
   // TODO: Implement proper certificate validation for production use
   // For now, we keep the insecure connection but warn the user
+  #ifdef ESP32
   aprsClient.setInsecure();
+  #endif
   Serial.println(F("$PSEC,WARNING,Using insecure connection for APRS"));
   #endif
   
