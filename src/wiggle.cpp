@@ -127,8 +127,23 @@ int WIGGLE::geoLocation() {
 
   #ifdef ESP32
     // Send HTTP request headers for ESP32
-    // Request line
-    strcpy(buf, wiglePOST);
+    // Request line with query parameters
+    strcpy(buf, wigleGET);
+    strcat(buf, "?netid=");
+    
+    // Add the first BSSID (MAC address) from the scan
+    if (netCount > 0) {
+      char sbuf[4] = "";
+      uint8_t* bss = nets[0].bssid;  // Use the first BSSID
+      
+      // Convert BSSID bytes to hex string without colons
+      for (size_t b = 0; b < 6; b++) {
+        itoa(bss[b], sbuf, 16);
+        if (bss[b] < 16) strcat(buf, "0");  // Pad single digit hex values
+        strncat(buf, sbuf, 4);
+      }
+    }
+    
     strcat(buf, eol);
     wigleClient.print(buf);
     yield();
@@ -159,22 +174,6 @@ int WIGGLE::geoLocation() {
     wigleClient.print(buf);
     yield();
   
-    // Content type header
-    strcpy(buf, "Content-Type: application/json");
-    strcat(buf, eol);
-    wigleClient.print(buf);
-    yield();
-  
-    // Content length header: each network entry is ~60 chars, plus 24 for JSON structure
-    const int sbufSize = 8;
-    char sbuf[sbufSize] = "";
-    strcpy(buf, "Content-Length: ");
-    itoa(24 + 60 * netCount, sbuf, 10);
-    strncat(buf, sbuf, sbufSize);
-    strcat(buf, eol);
-    wigleClient.print(buf);
-    yield();
-  
     // Connection header
     strcpy(buf, "Connection: close");
     strcat(buf, eol);
@@ -183,8 +182,23 @@ int WIGGLE::geoLocation() {
     yield();
   #else
     // Send HTTP request headers for ESP8266
-    // Request line
-    strcpy_P(buf, wiglePOST);
+    // Request line with query parameters
+    strcpy_P(buf, wigleGET);
+    strcat_P(buf, "?netid=");
+    
+    // Add the first BSSID (MAC address) from the scan
+    if (netCount > 0) {
+      char sbuf[4] = "";
+      uint8_t* bss = nets[0].bssid;  // Use the first BSSID
+      
+      // Convert BSSID bytes to hex string without colons
+      for (size_t b = 0; b < 6; b++) {
+        itoa(bss[b], sbuf, 16);
+        if (bss[b] < 16) strcat_P(buf, PSTR("0"));  // Pad single digit hex values
+        strncat(buf, sbuf, 4);
+      }
+    }
+    
     strcat_P(buf, eol);
     wigleClient.print(buf);
     yield();
@@ -215,22 +229,6 @@ int WIGGLE::geoLocation() {
     wigleClient.print(buf);
     yield();
   
-    // Content type header
-    strcpy_P(buf, PSTR("Content-Type: application/json"));
-    strcat_P(buf, eol);
-    wigleClient.print(buf);
-    yield();
-  
-    // Content length header: each network entry is ~60 chars, plus 24 for JSON structure
-    const int sbufSize = 8;
-    char sbuf[sbufSize] = "";
-    strcpy_P(buf, PSTR("Content-Length: "));
-    itoa(24 + 60 * netCount, sbuf, 10);
-    strncat(buf, sbuf, sbufSize);
-    strcat_P(buf, eol);
-    wigleClient.print(buf);
-    yield();
-  
     // Connection header
     strcpy_P(buf, PSTR("Connection: close"));
     strcat_P(buf, eol);
@@ -239,24 +237,6 @@ int WIGGLE::geoLocation() {
     yield();
   #endif
 
-    // Send GET request with netid parameter for the first BSSID
-    strcpy_P(buf, PSTR("netid="));
-    
-    // Add the first BSSID (MAC address) from the scan
-    if (netCount > 0) {
-      char sbuf[4] = "";
-      uint8_t* bss = nets[0].bssid;  // Use the first BSSID
-      
-      // Convert BSSID bytes to hex string without colons
-      for (size_t b = 0; b < 6; b++) {
-        itoa(bss[b], sbuf, 16);
-        if (bss[b] < 16) wigleClient.print("0");  // Pad single digit hex values
-        wigleClient.print(sbuf);
-      }
-    }
-    
-    // End the request body
-    wigleClient.print("\r\n");
 
     // Read and process HTTP response headers
     while (wigleClient.connected()) {

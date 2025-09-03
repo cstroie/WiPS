@@ -39,17 +39,17 @@
 #define WIGLE_SERVER    "api.wigle.net"
 #define WIGLE_PORT      443
 #ifdef ESP32
-  #define WIGLE_POST      "POST /api/v2/network/search HTTP/1.1"
+  #define WIGLE_GET      "GET /api/v2/network/search HTTP/1.1"
 #else
-  #define WIGLE_POST      "POST /api/v2/network/search HTTP/1.1"
+  #define WIGLE_GET      "GET /api/v2/network/search HTTP/1.1"
 #endif
 
 const char wigleServer[]      = WIGLE_SERVER;
 const int  wiglePort          = WIGLE_PORT;
 #ifdef ESP32
-  const char wiglePOST[] = WIGLE_POST;
+  const char wigleGET[] = WIGLE_GET;
 #else
-  const char wiglePOST[] PROGMEM  = WIGLE_POST;
+  const char wigleGET[] PROGMEM  = WIGLE_GET;
 #endif
 
 /**
