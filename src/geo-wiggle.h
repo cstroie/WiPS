@@ -1,19 +1,19 @@
 /**
-  geo-wiggle.h - Wiggle Location Services Geolocation
+  geo-wiggle.h - WiGLE Geolocation
          
   This library provides WiFi-based geolocation functionality using
-  Mozilla Location Services (MLS) and Google Geolocation API.
+  WiGLE.net API.
   
   The geolocation process involves:
   1. Scanning nearby WiFi access points and collecting their BSSID and RSSI
-  2. Sending this data to a geolocation service (MLS or Google)
+  2. Sending this data to WiGLE.net geolocation service
   3. Receiving latitude, longitude, and accuracy information
   4. Calculating movement, distance, speed, and bearing between locations
   5. Converting coordinates to Maidenhead locator and cardinal directions
 
   Features:
   - WiFi AP scanning with BSSID and RSSI collection
-  - HTTPS geolocation using Mozilla Location Services or Google API
+  - HTTPS geolocation using WiGLE.net API
   - Distance and bearing calculations using spherical geometry
   - Maidenhead grid locator conversion
   - Cardinal direction mapping

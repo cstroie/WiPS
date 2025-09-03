@@ -1,9 +1,8 @@
 /**
-  geo-wiggle.cpp - Google Location Services Geolocation
+  geo-wiggle.cpp - WiGLE Geolocation
 
-  Implementation of WiFi-based geolocation using Mozilla Location Services
-  and Google Geolocation API. Handles WiFi scanning, HTTPS communication,
-  JSON parsing, and coordinate calculations.
+  Implementation of WiFi-based geolocation using WiGLE.net API.
+  Handles WiFi scanning, HTTPS communication, JSON parsing, and coordinate calculations.
 
   Copyright (c) 2017-2025 Costin STROIE <costinstroie@eridu.eu.org>
 
@@ -41,15 +40,15 @@ void WIGGLE::init() {
 }
 
 /**
-  Perform geolocation using collected WiFi data via Mozilla Location Services or Google Geolocation API
+  Perform geolocation using collected WiFi data via WiGLE.net API
   
-  This function sends the collected BSSID/RSSI data to a geolocation service over HTTPS
+  This function sends the collected BSSID/RSSI data to WiGLE.net over HTTPS
   and parses the JSON response to extract latitude, longitude, and accuracy information.
   
   The process involves:
-  1. Creating a secure HTTPS connection to the geolocation service
-  2. Building a JSON request with WiFi access point data
-  3. Sending an HTTP POST request with the JSON payload
+  1. Creating a secure HTTPS connection to WiGLE.net
+  2. Building a query with a randomly selected BSSID
+  3. Sending an HTTP GET request
   4. Reading and parsing the JSON response
   5. Extracting location coordinates and accuracy
   6. Updating internal location state and Maidenhead locator

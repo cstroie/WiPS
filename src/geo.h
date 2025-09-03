@@ -1,19 +1,19 @@
 /**
-  geo.h - Mozilla Location Services Geolocation
+  geo.h - WiFi Geolocation
          
   This library provides WiFi-based geolocation functionality using
-  Mozilla Location Services (MLS) and Google Geolocation API.
+  various geolocation services (WiGLE.net, Mozilla Location Services, Google Geolocation API).
   
   The geolocation process involves:
   1. Scanning nearby WiFi access points and collecting their BSSID and RSSI
-  2. Sending this data to a geolocation service (MLS or Google)
+  2. Sending this data to a geolocation service
   3. Receiving latitude, longitude, and accuracy information
   4. Calculating movement, distance, speed, and bearing between locations
   5. Converting coordinates to Maidenhead locator and cardinal directions
 
   Features:
   - WiFi AP scanning with BSSID and RSSI collection
-  - HTTPS geolocation using Mozilla Location Services or Google API
+  - HTTPS geolocation using various services
   - Distance and bearing calculations using spherical geometry
   - Maidenhead grid locator conversion
   - Cardinal direction mapping

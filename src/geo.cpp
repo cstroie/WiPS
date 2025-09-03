@@ -1,9 +1,8 @@
 /**
-  geo.cpp - Mozilla Location Services Geolocation
+  geo.cpp - WiFi Geolocation
          
-  Implementation of WiFi-based geolocation using Mozilla Location Services
-  and Google Geolocation API. Handles WiFi scanning, HTTPS communication,
-  JSON parsing, and coordinate calculations.
+  Implementation of WiFi-based geolocation using various geolocation services.
+  Handles WiFi scanning, HTTPS communication, JSON parsing, and coordinate calculations.
 
   Copyright (c) 2017-2025 Costin STROIE <costinstroie@eridu.eu.org>
 
@@ -157,15 +156,15 @@ bool GEO::networksChanged(nets_t* newNets, int newCount) {
 }
 
 /**
-  Perform geolocation using collected WiFi data via Mozilla Location Services or Google Geolocation API
+  Perform geolocation using collected WiFi data via configured geolocation service
   
   This function sends the collected BSSID/RSSI data to a geolocation service over HTTPS
   and parses the JSON response to extract latitude, longitude, and accuracy information.
   
   The process involves:
   1. Creating a secure HTTPS connection to the geolocation service
-  2. Building a JSON request with WiFi access point data
-  3. Sending an HTTP POST request with the JSON payload
+  2. Building a request with WiFi access point data
+  3. Sending an HTTP request
   4. Reading and parsing the JSON response
   5. Extracting location coordinates and accuracy
   6. Updating internal location state and Maidenhead locator
