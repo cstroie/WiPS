@@ -95,9 +95,9 @@ WiFiUDP   bcastUDP;
 IPAddress bcastIP(0, 0, 0, 0);
 const int bcastPort = 10110;
 
-// Mozilla Location Services
-#include "mls.h"
-MLS mls;
+// Geolocation
+#include "geo.h"
+GEO geo;
 
 // Network Time Protocol
 #include "ntp.h"
@@ -817,7 +817,7 @@ void loop() {
 
     // Scan for nearby WiFi access points
     Serial.print(F("$PSCAN,WIFI,"));
-    int found = mls.wifiScan(false);
+    int found = geo.wifiScan(false);
 
     // Process geolocation if WiFi networks were found
     if (found > 0) {
@@ -828,7 +828,7 @@ void loop() {
       Serial.print("s\r\n");
 
       // Perform geolocation using WiFi data
-      int acc = mls.geoLocation();
+      int acc = geo.geoLocation();
       // Return LED to normal brightness
       setLED(4);
 
@@ -846,12 +846,12 @@ void loop() {
 #endif
 
       // Process location data if geolocation was successful
-      if (mls.current.valid) {
+      if (geo.current.valid) {
         // Report successful geolocation
         Serial.print(F("$PSCAN,FIX,"));
-        Serial.print(mls.current.latitude, 6);  Serial.print(",");
-        Serial.print(mls.current.longitude, 6); Serial.print(",");
-        Serial.print(mls.locator);              Serial.print(",");
+        Serial.print(geo.current.latitude, 6);  Serial.print(",");
+        Serial.print(geo.current.longitude, 6); Serial.print(",");
+        Serial.print(geo.locator);              Serial.print(",");
         Serial.print(acc);                      Serial.print("m,");
         Serial.print(ntp.getSeconds() - utm);   Serial.print("s");
 #ifdef HAVE_OLED
@@ -869,17 +869,17 @@ void loop() {
 #endif
 
         // Check if the device is moving by comparing distance to accuracy threshold
-        bool moving = mls.getMovement() >= (sAcc >> 2);  // Movement threshold = 25% of accuracy
+        bool moving = geo.getMovement() >= (sAcc >> 2);  // Movement threshold = 25% of accuracy
         if (moving) {
           // Exponentially smooth the bearing for better directional data
           // This applies a 75% smoothing factor to reduce bearing jitter
-          if (sCrs < 0) sCrs = mls.bearing;  // Initialize on first reading
-          else          sCrs = ((sCrs + (mls.bearing << 2) - mls.bearing) + 2) >> 2;  // Smoothed average
+          if (sCrs < 0) sCrs = geo.bearing;  // Initialize on first reading
+          else          sCrs = ((sCrs + (geo.bearing << 2) - geo.bearing) + 2) >> 2;  // Smoothed average
           // Report movement data
           Serial.print(",");
-          Serial.print(mls.distance, 2);  Serial.print("m,");
-          Serial.print(mls.speed, 2);     Serial.print("m/s,");
-          Serial.print(mls.bearing);      Serial.print("'");
+          Serial.print(geo.distance, 2);  Serial.print("m,");
+          Serial.print(geo.speed, 2);     Serial.print("m/s,");
+          Serial.print(geo.bearing);      Serial.print("'");
 #ifdef HAVE_OLED
           // Update OLED display with movement information
           u8x8.setCursor(0, 2); u8x8.print("Spd "); u8x8.print(mls.speed, 2);
@@ -918,13 +918,13 @@ void loop() {
               char buf[45] = "";
               // Prepare the comment with telemetry data
               snprintf_P(buf, sizeof(buf), PSTR("Acc:%d Dst:%d Spd:%d Crs:%s Vcc:%d.%d RSSI:%d"),
-                         acc, (int)(mls.distance), (int)(3.6 * mls.speed), mls.getCardinal(sCrs),
+                         acc, (int)(geo.distance), (int)(3.6 * geo.speed), geo.getCardinal(sCrs),
                          vcc / 1000, (vcc % 1000) / 100, rssi);
               // Send position report with course, speed, and comment
-              aprs.sendPosition(utm, mls.current.latitude, mls.current.longitude, sCrs, mls.knots, acc, buf);
+              aprs.sendPosition(utm, geo.current.latitude, geo.current.longitude, sCrs, geo.knots, acc, buf);
               // Send telemetry data with system metrics
-              // Speed conversion: mls.speed / 0.0008 = mls.speed * 1250
-              aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(mls.speed * 1250)), aprs.aprsTlmBits);
+              // Speed conversion: geo.speed / 0.0008 = geo.speed * 1250
+              aprs.sendTelemetry((vcc - 2500) / 4, -rssi, heap / 256, acc, (int)(sqrt(geo.speed * 1250)), aprs.aprsTlmBits);
               
               // Adjust reporting delay using SmartBeaconing algorithm
               if (moving) {
@@ -1008,9 +1008,9 @@ void sendNMEASentences(unsigned long utm, bool useCurrentLocation) {
   int found = 0;
   
   // Use current valid location if available
-  if (mls.current.valid) {
-    lat = mls.current.latitude;
-    lng = mls.current.longitude;
+  if (geo.current.valid) {
+    lat = geo.current.latitude;
+    lng = geo.current.longitude;
     found = 1;
   }
   // If no valid location, use default values (0.0, 0.0) and found = 0
@@ -1024,7 +1024,7 @@ void sendNMEASentences(unsigned long utm, bool useCurrentLocation) {
   }
   // Generate and send RMC sentence (recommended minimum data) - only if valid location
   if (nmeaReport.rmc && found) {
-    lenServer = nmea.getRMC(bufServer, sizeof(bufServer), utm, lat, lng, mls.knots, sCrs);
+    lenServer = nmea.getRMC(bufServer, sizeof(bufServer), utm, lat, lng, geo.knots, sCrs);
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);
@@ -1037,8 +1037,8 @@ void sendNMEASentences(unsigned long utm, bool useCurrentLocation) {
     broadcast(bufServer, lenServer);
   }
   // Generate and send VTG sentence (track made good) - only if valid location and moving
-  if (nmeaReport.vtg && found && mls.knots > 0) {
-    lenServer = nmea.getVTG(bufServer, sizeof(bufServer), sCrs, mls.knots, (int)(mls.speed * 3.6));
+  if (nmeaReport.vtg && found && geo.knots > 0) {
+    lenServer = nmea.getVTG(bufServer, sizeof(bufServer), sCrs, geo.knots, (int)(geo.speed * 3.6));
     Serial.print(bufServer);
     if (nmeaServer.clients) nmeaServer.sendAll(bufServer);
     broadcast(bufServer, lenServer);

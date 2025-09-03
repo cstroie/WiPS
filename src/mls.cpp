@@ -1,5 +1,5 @@
 /**
-  mls.cpp - Mozilla Location Services Geolocation
+  geo.cpp - Mozilla Location Services Geolocation
          
   Implementation of WiFi-based geolocation using Mozilla Location Services
   and Google Geolocation API. Handles WiFi scanning, HTTPS communication,
@@ -22,13 +22,13 @@
 */
 
 #include "Arduino.h"
-#include "mls.h"
+#include "geo.h"
 #include "platform.h"
 
-MLS::MLS() {
+GEO::GEO() {
 }
 
-void MLS::init() {
+void GEO::init() {
 }
 
 /**
@@ -41,7 +41,7 @@ void MLS::init() {
   @param sort Whether to sort networks by RSSI strength (strongest first)
   @return Number of networks stored (excluding current AP)
 */
-int MLS::wifiScan(bool sort) {
+int GEO::wifiScan(bool sort) {
   // Keep the AP BSSID to exclude it from results
   uint8_t apBSSID[WL_MAC_ADDR_LENGTH];
   memcpy(apBSSID, WiFi.BSSID(), WL_MAC_ADDR_LENGTH);
@@ -110,7 +110,7 @@ int MLS::wifiScan(bool sort) {
   
   @return Accuracy in meters if successful, negative error code on failure
 */
-int MLS::geoLocation() {
+int GEO::geoLocation() {
   int   err = -1;      // Error code
   int   acc = -1;      // Accuracy in meters
   float lat = 0.0;     // Latitude
@@ -348,7 +348,7 @@ int MLS::geoLocation() {
   
   @return Distance traveled in meters
 */
-long MLS::getMovement() {
+long GEO::getMovement() {
   // Check if both current and previous geolocations are valid
   if (current.valid and previous.valid) {
     // Compute the great-circle distance between locations using haversine formula
@@ -394,7 +394,7 @@ long MLS::getMovement() {
   @param long2 Longitude of second point in decimal degrees
   @return Distance in meters
 */
-float MLS::getDistance(float lat1, float long1, float lat2, float long2) {
+float GEO::getDistance(float lat1, float long1, float lat2, float long2) {
   // Convert longitude difference to radians
   float delta = radians(long1 - long2);
   float sdlong = sin(delta);
@@ -434,7 +434,7 @@ float MLS::getDistance(float lat1, float long1, float lat2, float long2) {
   @param long2 Longitude of second point in decimal degrees
   @return Bearing in degrees (0-359)
 */
-int MLS::getBearing(float lat1, float long1, float lat2, float long2) {
+int GEO::getBearing(float lat1, float long1, float lat2, float long2) {
   // Convert coordinate differences to radians
   float dlon = radians(long2 - long1);
   lat1 = radians(lat1);
@@ -462,7 +462,7 @@ int MLS::getBearing(float lat1, float long1, float lat2, float long2) {
   @param course Bearing in degrees (0-359)
   @return Pointer to cardinal direction string
 */
-const char* MLS::getCardinal(int course) {
+const char* GEO::getCardinal(int course) {
   // 16-point compass directions in order
   static const char* directions[] = {"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
                                      "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
@@ -488,7 +488,7 @@ const char* MLS::getCardinal(int course) {
   @param lat Latitude in decimal degrees (-90 to +90)
   @param lng Longitude in decimal degrees (-180 to +180)
 */
-void MLS::getLocator(float lat, float lng) {
+void GEO::getLocator(float lat, float lng) {
   int o1, o2, o3;  // Longitude field, square, subsquare
   int a1, a2, a3;  // Latitude field, square, subsquare
   float rem;       // Remainder for calculations
