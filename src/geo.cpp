@@ -94,8 +94,8 @@ int GEO::wifiScan(bool sort) {
   if (sort) {
     // Bubble sort implementation for RSSI descending order
     nets_t tmp;
-    for (size_t i = 1; i < netCount; i++) {
-      for (size_t j = i; j > 0 && (nets[j - 1].rssi < nets[j].rssi); j--) {
+    for (int i = 1; i < netCount; i++) {
+      for (int j = i; j > 0 && (nets[j - 1].rssi < nets[j].rssi); j--) {
         // Swap network entries
         memcpy(tmp.bssid, nets[j - 1].bssid, WL_MAC_ADDR_LENGTH);
         tmp.rssi = nets[j - 1].rssi;
