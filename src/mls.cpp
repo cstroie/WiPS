@@ -125,8 +125,8 @@ int MLS::geoLocation() {
   
   // Only use setInsecure() if GEO_APIKEY is not properly configured (for testing only)
   #ifdef GEO_INSECURE
-  if (strcmp(GEO_SERVER, "www.googleapis.com") == 0 && 
-      strcmp(GEO_APIKEY, "USE_YOUR_GOOGLE_KEY") == 0) {
+  if (strcmp(GEO_SERVER, "location.services.mozilla.com") == 0 && 
+      strcmp(GEO_APIKEY, "USE_YOUR_MLS_KEY") == 0) {
     geoClient.setInsecure();
     Serial.println(F("$PSEC,WARNING,Using insecure HTTPS connection for geolocation testing"));
   }
