@@ -132,48 +132,76 @@ int WIGGLE::geoLocation(geo_t* loc, nets_t* nets, int netCount) {
 
     // Read and process HTTP response headers
     while (geoClient.connected()) {
-      size_t rlen = geoClient.readBytesUntil('\r', buf, bufSize);
+      size_t rlen = geoClient.readBytesUntil('\r', buf, bufSize-1);
       buf[rlen] = '\0';
-      Serial.println(buf);
+      //Serial.println(buf);
+      if (rlen == 0) break;  // No more data
+      geoClient.read(); // consume the '\n'
       if (rlen == 1) break;  // Empty line indicates end of headers
     }
 
+    // Read the entire response body into a buffer
+    const int responseSize = 2048;
+    char response[responseSize] = "";
+    int responseLen = 0;
+    
+    while (geoClient.connected() && responseLen < responseSize-1) {
+      if (geoClient.available()) {
+        response[responseLen++] = geoClient.read();
+      }
+      yield();
+    }
+    response[responseLen] = '\0';
+    
     // Parse the JSON response to extract location data
     bool success = false;
     bool foundResults = false;
     
-    while (geoClient.connected() && geoClient.available()) {
-      // Look for "success" field
-      if (geoClient.find("\"success\"")) {
-        geoClient.find(":");
-        success = geoClient.parseInt() == 1;
+    // Look for "success" field
+    char* successPtr = strstr(response, "\"success\"");
+    if (successPtr != nullptr) {
+      char* colonPtr = strchr(successPtr, ':');
+      if (colonPtr != nullptr) {
+        success = atoi(colonPtr + 1) == 1;
       }
-      
-      // Look for "totalResults" field
-      if (geoClient.find("\"totalResults\"")) {
-        geoClient.find(":");
-        int totalResults = geoClient.parseInt();
+    }
+    
+    // Look for "totalResults" field
+    char* totalResultsPtr = strstr(response, "\"totalResults\"");
+    if (totalResultsPtr != nullptr) {
+      char* colonPtr = strchr(totalResultsPtr, ':');
+      if (colonPtr != nullptr) {
+        int totalResults = atoi(colonPtr + 1);
         foundResults = (totalResults > 0);
       }
-      
-      // Look for latitude and longitude in the first result
-      if (foundResults && geoClient.find("\"trilat\"")) {
-        geoClient.find(":");
-        lat = geoClient.parseFloat();
+    }
+    
+    // Look for latitude and longitude in the first result
+    if (foundResults) {
+      char* trilatPtr = strstr(response, "\"trilat\"");
+      if (trilatPtr != nullptr) {
+        char* colonPtr = strchr(trilatPtr, ':');
+        if (colonPtr != nullptr) {
+          lat = atof(colonPtr + 1);
+        }
       }
       
-      if (foundResults && geoClient.find("\"trilong\"")) {
-        geoClient.find(":");
-        lng = geoClient.parseFloat();
+      char* trilongPtr = strstr(response, "\"trilong\"");
+      if (trilongPtr != nullptr) {
+        char* colonPtr = strchr(trilongPtr, ':');
+        if (colonPtr != nullptr) {
+          lng = atof(colonPtr + 1);
+        }
       }
       
       // Look for accuracy (using range as proxy for accuracy)
-      if (foundResults && geoClient.find("\"range\"")) {
-        geoClient.find(":");
-        acc = geoClient.parseInt();
+      char* rangePtr = strstr(response, "\"range\"");
+      if (rangePtr != nullptr) {
+        char* colonPtr = strchr(rangePtr, ':');
+        if (colonPtr != nullptr) {
+          acc = atoi(colonPtr + 1);
+        }
       }
-      
-      break;
     }
 
     // Close the HTTPS connection
